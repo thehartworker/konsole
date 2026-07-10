@@ -1,7 +1,7 @@
 # Multi-Region-Backup-Strategie
 
 **Datum:** 2026-07-10
-**Status:** vorgeschlagen
+**Status:** akzeptiert
 
 **Kontext:** DSGVO Art. 32 verlangt technische und organisatorische Maßnahmen, die im Falle eines physischen oder technischen Zwischenfalls die Verfügbarkeit und den Zugang zu personenbezogenen Daten rasch wiederherstellen können. `SAAS_SPEC_v0.1_CONSOLE.md` §12.5 gibt dafür bereits ein konkretes Ziel vor (RPO 24 Stunden, RTO 4 Stunden), diese Entscheidung dokumentiert die zugrunde liegende Architektur-Wahl.
 

@@ -1,7 +1,7 @@
 # Deployment-Strategie
 
 **Datum:** 2026-07-10
-**Status:** vorgeschlagen
+**Status:** akzeptiert
 
 **Kontext:** Für den produktiven Betrieb eines Multi-Tenant-SaaS mit DSGVO-Anforderungen (EU-Hosting, siehe `SAAS_SPEC_v0.1_CONSOLE.md` §8.3) braucht es eine Deployment-Strategie für Application-Server, Datenbank und Objekt-Storage. Die Gesellschaft befindet sich in der Bootstrapping-Phase, Kostenkontrolle ist daher wichtig, ebenso Betriebs-Einfachheit für ein kleines Team.
 

@@ -1,7 +1,7 @@
 # Tech-Stack für die Intake-Konsole
 
 **Datum:** 2026-07-10
-**Status:** vorgeschlagen
+**Status:** akzeptiert
 
 **Kontext:** Wir bauen ein SaaS für kleine bis mittlere Kommunikationsagenturen im DACH-Raum (siehe `SAAS_SPEC_v0.1_CONSOLE.md` §1.1), Multi-Tenant mit strikter Mandantentrennung zwischen Agenturen und deren Endkunden, DSGVO-konform mit Pflicht zu EU-Hosting. Das Team ist klein (Bastian plus Delegation an Claude Code), Reviewer-Zeit ist knapp (siehe `BUILD_PLAN_v0.1.md`), also muss der Stack Entwicklungsgeschwindigkeit und Betriebs-Einfachheit priorisieren.
 
