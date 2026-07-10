@@ -41,6 +41,13 @@ Abweichungen vom Stack brauchen einen Design-Decision-Eintrag (siehe §5) mit kl
 
 Kein Direkt-Commit auf `main`. Alle Änderungen laufen über `stage`-Branch, dann PR nach `main`. `main` deployt automatisch auf Produktion, `stage` auf stage-Umgebung. Analog zum bestehenden Muster in Akquiro.
 
+**Wichtig:** GitHub Branch-Protection ist auf diesem Repo technisch nicht durchgesetzt (persönliches Private-Repo ohne Team-Konto). Die Disziplin gilt als Konvention, nicht als technischer Zwang. Konkret:
+
+- Kein direkter Push auf `main`. Niemals. Auch nicht "kurz für ein Typo-Fix".
+- Feature-PRs gehen gegen `stage`.
+- Release-PRs gehen von `stage` nach `main` als bewusster Merge, mit passendem Commit-Titel ("Release YYYY-MM-DD" oder Feature-Rollup).
+- Alle Agent-PRs (claude-code-action) gehen automatisch gegen `stage`.
+
 ### 3.2 Konzept-vor-Code
 
 Kein Feature wird gebaut, dessen Konzept nicht in `/docs/decisions/` als Markdown-Datei vorliegt. Format: `YYYY-MM-DD_kurztitel.md`. Struktur pro Entscheidung:
