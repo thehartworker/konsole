@@ -1,4 +1,4 @@
-# Build Plan v0.1 — 8-Wochen-Bauplan Intake-Konsole SaaS
+# Build Plan v1.0 — 8-Wochen-Bauplan Intake-Konsole SaaS
 
 **Stand:** 10. Juli 2026
 **Zeitraum:** Woche 1 startet am Montag, 13. Juli 2026, Woche 8 endet am Freitag, 4. September 2026
@@ -17,6 +17,8 @@
 **Konzept-vor-Code-Regel:** kein Feature wird gebaut, dessen Handler-Contract oder API-Schnittstelle oder Datenmodell-Aspekt nicht in einem Konzept-Dokument (Markdown im repo unter `/docs/decisions/`) vorher fixiert wurde. Analog zu deinem gewohnten Muster.
 
 **Der Prototyp ist Steinbruch, nicht Fundament.** Die bestehende Intake-Konsole (siehe Handoff-Dokument) liefert Prompt-Content, UX-Prinzipien, und Klassifikations-Logik. Der Code selbst wird nicht übernommen, weil er Single-Tenant und ohne DSGVO-Härtung ist. Aber die produktiv gehärteten Erkenntnisse fließen ein.
+
+**MENSCH-Pilot pre-Gründung erlaubt.** Aus der Bastian-Diskussion mit dem Panel: MENSCH kann pre-Gründung mit dem Produkt testen, wenn die Chefs damit einverstanden sind (persönliches Vertrauensverhältnis vorhanden). Der offizielle SaaS-Vertrag wird nach Handelsregister-Eintragung nachgezogen. Bis dahin läuft die Testphase auf informeller Basis, mit Bastian als natürlicher Ansprechperson und Haftung. Nicht ideal aus Vertragssicht, aber praktikabel bei den gegebenen Vertrauensverhältnissen.
 
 ---
 
