@@ -1,0 +1,49 @@
+# Supabase-CLI-Konfiguration fuer lokale Entwicklung.
+# Quelle: docs/decisions/2026-07-11_basis-auth.md ("kein oeffentlicher
+# Self-Signup in v1", "E-Mail/Passwort als Start, keine Social-Logins").
+#
+# Secrets (DB-Passwort, service_role-Key, SMTP-Zugangsdaten) stehen NICHT in
+# dieser Datei, siehe AGENTS.md §4 ("Keine Secrets im Code"). Die Supabase-
+# CLI liest Secrets aus Umgebungsvariablen bzw. aus dem Dashboard fuer
+# gehostete Projekte; diese Datei regelt nur strukturelle Konfiguration.
+#
+# Nicht gegen eine echte Supabase-CLI validiert (Sandbox ohne Netzwerk-
+# Zugriff auf den CLI-Download, siehe PR-Beschreibung). Feldnamen nach
+# bestem Wissen aus dem Standard-`supabase init`-Schema, sollte vor dem
+# ersten `supabase start` kurz gegengeprueft werden.
+
+project_id = "konsole"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public"]
+max_rows = 1000
+
+[db]
+port = 54322
+major_version = 16
+
+[studio]
+enabled = true
+port = 54323
+
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["http://localhost:3000"]
+jwt_expiry = 3600
+# Kein oeffentlicher Self-Signup: Nutzer-Anlage laeuft ausschliesslich ueber
+# die Admin-API (service_role) durch einen privilegierten Server-Kontext,
+# siehe Decision.
+enable_signup = false
+enable_confirmations = true
+
+[auth.email]
+enable_signup = false
+double_confirm_changes = true
+enable_confirmations = true
+
+# Keine Social-Logins in v1 (AGENTS.md/Issue #20 PR 2). Provider-Bloecke
+# bewusst nicht eingetragen, Supabase-Default ist "disabled" ohne Eintrag.
