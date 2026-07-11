@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { Nav } from "@/components/nav";
 
 const ROLLEN_LABEL: Record<string, string> = {
   chef: "Chef",
@@ -30,30 +31,24 @@ export default async function KontoSeite() {
     .single();
 
   return (
-    <main className="mx-auto max-w-2xl px-4 py-12">
-      <h1 className="text-xl font-semibold text-slate-900">Angemeldet</h1>
+    <div className="min-h-screen">
+      <Nav />
+      <main className="mx-auto max-w-2xl px-4 py-12">
+        <h1 className="text-xl font-semibold text-slate-900">Angemeldet</h1>
 
-      {nutzer ? (
-        <p className="mt-4 text-sm text-slate-700">
-          Eingeloggt als <strong>{nutzer.name}</strong> (
-          {ROLLEN_LABEL[nutzer.rolle] ?? nutzer.rolle}) bei{" "}
-          <strong>{nutzer.agenturen?.name ?? "unbekannte Agentur"}</strong>.
-        </p>
-      ) : (
-        <p className="mt-4 text-sm text-red-700">
-          Kein passender nutzer-Datensatz gefunden (RLS blockiert den Zugriff
-          oder die Nutzer-Verknuepfung fehlt).
-        </p>
-      )}
-
-      <form action="/logout" method="post" className="mt-8">
-        <button
-          type="submit"
-          className="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-        >
-          Abmelden
-        </button>
-      </form>
-    </main>
+        {nutzer ? (
+          <p className="mt-4 text-sm text-slate-700">
+            Eingeloggt als <strong>{nutzer.name}</strong> (
+            {ROLLEN_LABEL[nutzer.rolle] ?? nutzer.rolle}) bei{" "}
+            <strong>{nutzer.agenturen?.name ?? "unbekannte Agentur"}</strong>.
+          </p>
+        ) : (
+          <p className="mt-4 text-sm text-red-700">
+            Kein passender nutzer-Datensatz gefunden (RLS blockiert den Zugriff
+            oder die Nutzer-Verknuepfung fehlt).
+          </p>
+        )}
+      </main>
+    </div>
   );
 }

@@ -7,5 +7,5 @@ export default async function StartSeite() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  redirect(user ? "/konto" : "/login");
+  redirect(user ? "/vorgaenge" : "/login");
 }

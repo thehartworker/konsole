@@ -21,28 +21,11 @@
 -- public.nutzer per SQL nachziehen.
 
 -- ============================================================
--- auth.users (nur für die drei Test-Nutzer unten)
--- ============================================================
-
-INSERT INTO auth.users (
-  instance_id, id, aud, role, email, encrypted_password,
-  email_confirmed_at, raw_app_meta_data, raw_user_meta_data,
-  created_at, updated_at, confirmation_token, email_change,
-  email_change_token_new, recovery_token
-) VALUES
-  ('00000000-0000-0000-0000-000000000000', '33333333-3333-3333-3333-333333333331',
-   'authenticated', 'authenticated', 'chef@test-agentur.example', crypt('test-passwort-nur-lokal', gen_salt('bf')),
-   now(), '{"provider":"email","providers":["email"]}', '{}', now(), now(), '', '', '', ''),
-  ('00000000-0000-0000-0000-000000000000', '33333333-3333-3333-3333-333333333332',
-   'authenticated', 'authenticated', 'manager@test-agentur.example', crypt('test-passwort-nur-lokal', gen_salt('bf')),
-   now(), '{"provider":"email","providers":["email"]}', '{}', now(), now(), '', '', '', ''),
-  ('00000000-0000-0000-0000-000000000000', '33333333-3333-3333-3333-333333333333',
-   'authenticated', 'authenticated', 'editor@test-agentur.example', crypt('test-passwort-nur-lokal', gen_salt('bf')),
-   now(), '{"provider":"email","providers":["email"]}', '{}', now(), now(), '', '', '', '')
-ON CONFLICT (id) DO NOTHING;
-
--- ============================================================
 -- agenturen
+-- Muss VOR auth.users laufen: der fail-closed handle_new_user()-Trigger
+-- (Migration 20260711140000_auth_nutzer_verknuepfung.sql) legt synchron eine
+-- nutzer-Zeile mit agentur_id-FK an, sobald ein auth.users-Datensatz mit
+-- passenden raw_user_meta_data eingefügt wird.
 -- ============================================================
 
 INSERT INTO agenturen (id, name, slug) VALUES
@@ -59,13 +42,34 @@ INSERT INTO kunden (id, agentur_id, name, slug, autonomie_level, retention_monat
 ON CONFLICT (id) DO NOTHING;
 
 -- ============================================================
--- nutzer (chef, manager, editor)
+-- auth.users (nur für die drei Test-Nutzer unten)
+-- raw_user_meta_data trägt agentur_id/rolle/name, damit der
+-- handle_new_user()-Trigger daraus automatisch die passende nutzer-Zeile
+-- anlegt (kein separater "INSERT INTO nutzer"-Block mehr nötig, der würde
+-- mit der vom Trigger angelegten Zeile kollidieren).
 -- ============================================================
 
-INSERT INTO nutzer (id, agentur_id, name, rolle) VALUES
-  ('33333333-3333-3333-3333-333333333331', '11111111-1111-1111-1111-111111111111', 'Chef Testnutzer', 'chef'),
-  ('33333333-3333-3333-3333-333333333332', '11111111-1111-1111-1111-111111111111', 'Manager Testnutzer', 'manager'),
-  ('33333333-3333-3333-3333-333333333333', '11111111-1111-1111-1111-111111111111', 'Editor Testnutzer', 'editor')
+INSERT INTO auth.users (
+  instance_id, id, aud, role, email, encrypted_password,
+  email_confirmed_at, raw_app_meta_data, raw_user_meta_data,
+  created_at, updated_at, confirmation_token, email_change,
+  email_change_token_new, recovery_token
+) VALUES
+  ('00000000-0000-0000-0000-000000000000', '33333333-3333-3333-3333-333333333331',
+   'authenticated', 'authenticated', 'chef@test-agentur.example', crypt('test-passwort-nur-lokal', gen_salt('bf')),
+   now(), '{"provider":"email","providers":["email"]}',
+   '{"agentur_id": "11111111-1111-1111-1111-111111111111", "rolle": "chef", "name": "Chef Testnutzer"}',
+   now(), now(), '', '', '', ''),
+  ('00000000-0000-0000-0000-000000000000', '33333333-3333-3333-3333-333333333332',
+   'authenticated', 'authenticated', 'manager@test-agentur.example', crypt('test-passwort-nur-lokal', gen_salt('bf')),
+   now(), '{"provider":"email","providers":["email"]}',
+   '{"agentur_id": "11111111-1111-1111-1111-111111111111", "rolle": "manager", "name": "Manager Testnutzer"}',
+   now(), now(), '', '', '', ''),
+  ('00000000-0000-0000-0000-000000000000', '33333333-3333-3333-3333-333333333333',
+   'authenticated', 'authenticated', 'editor@test-agentur.example', crypt('test-passwort-nur-lokal', gen_salt('bf')),
+   now(), '{"provider":"email","providers":["email"]}',
+   '{"agentur_id": "11111111-1111-1111-1111-111111111111", "rolle": "editor", "name": "Editor Testnutzer"}',
+   now(), now(), '', '', '', '')
 ON CONFLICT (id) DO NOTHING;
 
 -- ============================================================

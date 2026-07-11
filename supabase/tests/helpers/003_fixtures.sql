@@ -13,26 +13,39 @@
 -- deshalb keine tests.authenticate_as()-Aufrufe nötig.
 
 -- ============================================================
--- auth.users (Stub, siehe 000_auth_roles_and_uid.sql)
--- ============================================================
-
-INSERT INTO auth.users (id) VALUES
-  ('a0000000-0000-0000-0000-000000000101'), -- chef_a
-  ('a0000000-0000-0000-0000-000000000102'), -- manager_a
-  ('a0000000-0000-0000-0000-000000000103'), -- editor_a1 (zuständig für sensitiven Vorgang)
-  ('a0000000-0000-0000-0000-000000000104'), -- editor_a2 (gleicher Kunde, NICHT zuständig)
-  ('a0000000-0000-0000-0000-000000000105'), -- reader_a
-  ('a0000000-0000-0000-0000-000000000106'), -- guest_a
-  ('a0000000-0000-0000-0000-000000000201'), -- chef_b (andere Agentur)
-  ('a0000000-0000-0000-0000-000000000202'); -- editor_b (andere Agentur)
-
--- ============================================================
 -- agenturen
 -- ============================================================
 
 INSERT INTO agenturen (id, name, slug) VALUES
   ('a0000000-0000-0000-0000-000000000001', 'Agentur A (Test)', 'agentur-a-test'),
   ('a0000000-0000-0000-0000-000000000002', 'Agentur B (Test)', 'agentur-b-test');
+
+-- ============================================================
+-- auth.users (Stub, siehe 000_auth_roles_and_uid.sql)
+-- Muss NACH agenturen laufen: der fail-closed handle_new_user()-Trigger
+-- (Migration 20260711140000_auth_nutzer_verknuepfung.sql) legt synchron eine
+-- passende nutzer-Zeile mit agentur_id-FK an, sobald raw_user_meta_data
+-- agentur_id/rolle/name enthält. Der separate "INSERT INTO nutzer"-Block
+-- entfällt deshalb (würde mit der vom Trigger angelegten Zeile kollidieren).
+-- ============================================================
+
+INSERT INTO auth.users (id, email, raw_user_meta_data) VALUES
+  ('a0000000-0000-0000-0000-000000000101', 'chef-a@fixtures.test',
+   '{"agentur_id": "a0000000-0000-0000-0000-000000000001", "rolle": "chef", "name": "Chef A (Test)"}'), -- chef_a
+  ('a0000000-0000-0000-0000-000000000102', 'manager-a@fixtures.test',
+   '{"agentur_id": "a0000000-0000-0000-0000-000000000001", "rolle": "manager", "name": "Manager A (Test)"}'), -- manager_a
+  ('a0000000-0000-0000-0000-000000000103', 'editor-a1@fixtures.test',
+   '{"agentur_id": "a0000000-0000-0000-0000-000000000001", "rolle": "editor", "name": "Editor A1 (Test)"}'), -- editor_a1 (zuständig für sensitiven Vorgang)
+  ('a0000000-0000-0000-0000-000000000104', 'editor-a2@fixtures.test',
+   '{"agentur_id": "a0000000-0000-0000-0000-000000000001", "rolle": "editor", "name": "Editor A2 (Test)"}'), -- editor_a2 (gleicher Kunde, NICHT zuständig)
+  ('a0000000-0000-0000-0000-000000000105', 'reader-a@fixtures.test',
+   '{"agentur_id": "a0000000-0000-0000-0000-000000000001", "rolle": "reader", "name": "Reader A (Test)"}'), -- reader_a
+  ('a0000000-0000-0000-0000-000000000106', 'guest-a@fixtures.test',
+   '{"agentur_id": "a0000000-0000-0000-0000-000000000001", "rolle": "guest", "name": "Guest A (Test)"}'), -- guest_a
+  ('a0000000-0000-0000-0000-000000000201', 'chef-b@fixtures.test',
+   '{"agentur_id": "a0000000-0000-0000-0000-000000000002", "rolle": "chef", "name": "Chef B (Test)"}'), -- chef_b (andere Agentur)
+  ('a0000000-0000-0000-0000-000000000202', 'editor-b@fixtures.test',
+   '{"agentur_id": "a0000000-0000-0000-0000-000000000002", "rolle": "editor", "name": "Editor B (Test)"}'); -- editor_b (andere Agentur)
 
 -- ============================================================
 -- kunden
@@ -42,20 +55,6 @@ INSERT INTO kunden (id, agentur_id, name, slug) VALUES
   ('a0000000-0000-0000-0000-000000000011', 'a0000000-0000-0000-0000-000000000001', 'Kunde A1 (Test)', 'kunde-a1'),
   ('a0000000-0000-0000-0000-000000000012', 'a0000000-0000-0000-0000-000000000001', 'Kunde A2 (Test)', 'kunde-a2'),
   ('a0000000-0000-0000-0000-000000000021', 'a0000000-0000-0000-0000-000000000002', 'Kunde B1 (Test)', 'kunde-b1');
-
--- ============================================================
--- nutzer
--- ============================================================
-
-INSERT INTO nutzer (id, agentur_id, name, rolle) VALUES
-  ('a0000000-0000-0000-0000-000000000101', 'a0000000-0000-0000-0000-000000000001', 'Chef A (Test)', 'chef'),
-  ('a0000000-0000-0000-0000-000000000102', 'a0000000-0000-0000-0000-000000000001', 'Manager A (Test)', 'manager'),
-  ('a0000000-0000-0000-0000-000000000103', 'a0000000-0000-0000-0000-000000000001', 'Editor A1 (Test)', 'editor'),
-  ('a0000000-0000-0000-0000-000000000104', 'a0000000-0000-0000-0000-000000000001', 'Editor A2 (Test)', 'editor'),
-  ('a0000000-0000-0000-0000-000000000105', 'a0000000-0000-0000-0000-000000000001', 'Reader A (Test)', 'reader'),
-  ('a0000000-0000-0000-0000-000000000106', 'a0000000-0000-0000-0000-000000000001', 'Guest A (Test)', 'guest'),
-  ('a0000000-0000-0000-0000-000000000201', 'a0000000-0000-0000-0000-000000000002', 'Chef B (Test)', 'chef'),
-  ('a0000000-0000-0000-0000-000000000202', 'a0000000-0000-0000-0000-000000000002', 'Editor B (Test)', 'editor');
 
 -- ============================================================
 -- nutzer_kunden_zuweisungen
