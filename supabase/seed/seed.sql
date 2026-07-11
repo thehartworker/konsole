@@ -19,9 +19,33 @@
 -- ausführen. Falls dieses Muster in CI instabil wird: Testnutzer stattdessen
 -- über die Supabase Admin API (auth.admin.createUser) anlegen und nur
 -- public.nutzer per SQL nachziehen.
+--
+-- raw_user_meta_data liefert agentur_id/rolle/name mit, weil der
+-- handle_new_user()-Trigger (Migration 20260711140000, siehe
+-- docs/decisions/2026-07-11_basis-auth.md) fail-closed ist und ohne diese
+-- Felder den ganzen Insert ablehnt. Der Trigger legt daraus automatisch die
+-- passende public.nutzer-Zeile an, ein separater INSERT INTO nutzer ist
+-- deshalb hier nicht mehr nötig (würde sonst denselben Primary Key erneut
+-- belegen).
 
 -- ============================================================
--- auth.users (nur für die drei Test-Nutzer unten)
+-- agenturen
+--
+-- Muss VOR auth.users laufen: der handle_new_user()-Trigger schreibt beim
+-- auth.users-Insert unten synchron eine public.nutzer-Zeile mit
+-- agentur_id-FK auf agenturen, die also schon existieren muss.
+-- ============================================================
+
+INSERT INTO agenturen (id, name, slug) VALUES
+  ('11111111-1111-1111-1111-111111111111', 'Test-Agentur (Seed)', 'test-agentur')
+ON CONFLICT (id) DO NOTHING;
+
+-- ============================================================
+-- auth.users und nutzer (chef, manager, editor)
+--
+-- Der handle_new_user()-Trigger legt bei jedem Insert unten automatisch die
+-- passende public.nutzer-Zeile an, ein separater INSERT INTO nutzer ist
+-- deshalb nicht mehr nötig.
 -- ============================================================
 
 INSERT INTO auth.users (
@@ -32,21 +56,19 @@ INSERT INTO auth.users (
 ) VALUES
   ('00000000-0000-0000-0000-000000000000', '33333333-3333-3333-3333-333333333331',
    'authenticated', 'authenticated', 'chef@test-agentur.example', crypt('test-passwort-nur-lokal', gen_salt('bf')),
-   now(), '{"provider":"email","providers":["email"]}', '{}', now(), now(), '', '', '', ''),
+   now(), '{"provider":"email","providers":["email"]}',
+   '{"agentur_id":"11111111-1111-1111-1111-111111111111","rolle":"chef","name":"Chef Testnutzer"}',
+   now(), now(), '', '', '', ''),
   ('00000000-0000-0000-0000-000000000000', '33333333-3333-3333-3333-333333333332',
    'authenticated', 'authenticated', 'manager@test-agentur.example', crypt('test-passwort-nur-lokal', gen_salt('bf')),
-   now(), '{"provider":"email","providers":["email"]}', '{}', now(), now(), '', '', '', ''),
+   now(), '{"provider":"email","providers":["email"]}',
+   '{"agentur_id":"11111111-1111-1111-1111-111111111111","rolle":"manager","name":"Manager Testnutzer"}',
+   now(), now(), '', '', '', ''),
   ('00000000-0000-0000-0000-000000000000', '33333333-3333-3333-3333-333333333333',
    'authenticated', 'authenticated', 'editor@test-agentur.example', crypt('test-passwort-nur-lokal', gen_salt('bf')),
-   now(), '{"provider":"email","providers":["email"]}', '{}', now(), now(), '', '', '', '')
-ON CONFLICT (id) DO NOTHING;
-
--- ============================================================
--- agenturen
--- ============================================================
-
-INSERT INTO agenturen (id, name, slug) VALUES
-  ('11111111-1111-1111-1111-111111111111', 'Test-Agentur (Seed)', 'test-agentur')
+   now(), '{"provider":"email","providers":["email"]}',
+   '{"agentur_id":"11111111-1111-1111-1111-111111111111","rolle":"editor","name":"Editor Testnutzer"}',
+   now(), now(), '', '', '', '')
 ON CONFLICT (id) DO NOTHING;
 
 -- ============================================================
@@ -56,16 +78,6 @@ ON CONFLICT (id) DO NOTHING;
 INSERT INTO kunden (id, agentur_id, name, slug, autonomie_level, retention_monate) VALUES
   ('22222222-2222-2222-2222-222222222221', '11111111-1111-1111-1111-111111111111', 'Bäckerei Hoffmann (Test)', 'baeckerei-hoffmann', 1, 24),
   ('22222222-2222-2222-2222-222222222222', '11111111-1111-1111-1111-111111111111', 'Pharma Beispiel GmbH (Test)', 'pharma-beispiel', 1, 24)
-ON CONFLICT (id) DO NOTHING;
-
--- ============================================================
--- nutzer (chef, manager, editor)
--- ============================================================
-
-INSERT INTO nutzer (id, agentur_id, name, rolle) VALUES
-  ('33333333-3333-3333-3333-333333333331', '11111111-1111-1111-1111-111111111111', 'Chef Testnutzer', 'chef'),
-  ('33333333-3333-3333-3333-333333333332', '11111111-1111-1111-1111-111111111111', 'Manager Testnutzer', 'manager'),
-  ('33333333-3333-3333-3333-333333333333', '11111111-1111-1111-1111-111111111111', 'Editor Testnutzer', 'editor')
 ON CONFLICT (id) DO NOTHING;
 
 -- ============================================================

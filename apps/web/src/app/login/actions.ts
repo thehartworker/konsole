@@ -21,5 +21,5 @@ export async function login(formData: FormData) {
     redirect("/login?fehler=anmeldung-fehlgeschlagen");
   }
 
-  redirect("/konto");
+  redirect("/vorgaenge");
 }

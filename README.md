@@ -39,3 +39,24 @@ Bevor hier etwas Substanzielles gebaut wird: `AGENTS.md` und die vier Spec-Datei
 ## Stack
 
 Next.js 15 App Router, TypeScript strict, Supabase (Postgres, Auth, Storage, pgvector), Anthropic Claude als LLM-Provider. Details und Begründung siehe `docs/decisions/`.
+
+## Lokal starten
+
+Voraussetzung: eine laufende Supabase-Instanz (z. B. `supabase start`) mit den Migrations aus `supabase/migrations/` angewendet.
+
+```bash
+# Test-Datensatz laden (TESTDATEN, siehe supabase/seed/seed.sql)
+psql "$DATABASE_URL" -f supabase/seed/seed.sql
+
+# Konsole starten
+cd apps/web
+cp .env.example .env.local   # NEXT_PUBLIC_SUPABASE_URL/ANON_KEY eintragen
+pnpm install
+pnpm dev
+```
+
+Login mit einem der drei Seed-Nutzer (Passwort jeweils `test-passwort-nur-lokal`):
+
+- `chef@test-agentur.example` (Rolle Chef, sieht alle Vorgänge der Agentur)
+- `manager@test-agentur.example` (Rolle Etatdirektor:in, sieht zugewiesene Kunden inkl. sensitiver Vorgänge)
+- `editor@test-agentur.example` (Rolle Berater:in, sieht zugewiesene Kunden ohne fremde sensitive Vorgänge)
