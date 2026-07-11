@@ -75,7 +75,11 @@ Neue Entscheidungen werden im PR mitgeliefert, wenn sie Auswirkungen aufs Produk
 
 ### 3.4 Sprache und Ton in Code, Kommentaren, Commits
 
-- Code: englisch (Variablen, Funktionen, Typen)
+Code ist nicht pauschal englisch. Es gilt eine Trennung nach Domäne versus Gerüst:
+
+- **Domänen-Bezeichner** (Datenbank-Tabellen, Domänen-Felder, Domänen-Typen): Deutsch, weil die Fachdomäne der DACH-PR-Beratung deutschsprachig ist. Beispiele: `vorgaenge`, `anliegen`, `kunden`, `sensitivity`, `kunden_kontakte`.
+- **Technisches Gerüst** (Standard-Spalten, Framework-Code, Utility-Funktionen, generische Variablen): Englisch. Beispiele: `id`, `created_at`, `updated_at`, `deleted_at`, `status`, `agentur_id`.
+- Faustregel: was ein PR-Berater als Fachbegriff kennt, ist Deutsch. Was ein Entwickler als technisches Standardelement kennt, ist Englisch.
 - Doku und Kommentare: deutsch, weil der Zielmarkt DACH ist
 - Commit-Messages: deutsch, im Präsens ("Fügt X hinzu", nicht "Added X")
 - Keine em-dashes in Kommentaren oder Doku (Bastian-Präferenz)
