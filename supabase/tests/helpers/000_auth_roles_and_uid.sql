@@ -9,6 +9,9 @@
 --   - auth.users als FK-Ziel für nutzer.id (Migration 1)
 --   - auth.uid(), auf der current_agentur_id()/current_rolle()/
 --     ist_kunde_zugewiesen()/darf_vorgang_sehen() aufbauen (Migration 3)
+--   - email/raw_user_meta_data auf auth.users, auf denen der
+--     handle_new_user()-Trigger aufbaut (Migration 4, siehe
+--     docs/decisions/2026-07-11_basis-auth.md)
 --   - die drei Rollen anon/authenticated/service_role, gegen die Supabase
 --     PostgREST-Zugriffe typischerweise ausführt
 --
@@ -18,7 +21,9 @@
 CREATE SCHEMA IF NOT EXISTS auth;
 
 CREATE TABLE IF NOT EXISTS auth.users (
-  id uuid PRIMARY KEY
+  id uuid PRIMARY KEY,
+  email text,
+  raw_user_meta_data jsonb NOT NULL DEFAULT '{}'::jsonb
 );
 
 DO $$
