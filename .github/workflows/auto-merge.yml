@@ -1,0 +1,60 @@
+name: Auto-Merge Doku-PRs
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto-merge:
+    if: |
+      github.event.pull_request.draft == false &&
+      github.event.pull_request.merged == false &&
+      github.event.pull_request.base.ref == 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Pruefe geaenderte Dateien
+        id: paths
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          CHANGED=$(gh api "repos/${REPO}/pulls/${PR_NUMBER}/files" --paginate --jq '.[].filename')
+          echo "Geaenderte Dateien:"
+          echo "$CHANGED"
+          if [ -z "$CHANGED" ]; then
+            echo "safe=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          SAFE=true
+          while IFS= read -r file; do
+            [ -z "$file" ] && continue
+            case "$file" in
+              supabase/*|packages/*|apps/*|.github/*) SAFE=false ;;
+            esac
+            case "$file" in
+              *auth*|*secret*|*env*) SAFE=false ;;
+            esac
+            case "$file" in
+              docs/*) ;;
+              *.md)
+                case "$file" in
+                  */*) SAFE=false ;;
+                esac
+                ;;
+              *) SAFE=false ;;
+            esac
+          done <<< "$CHANGED"
+          echo "safe=$SAFE" >> "$GITHUB_OUTPUT"
+
+      - name: Aktiviere Auto-Merge
+        if: steps.paths.outputs.safe == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr merge --auto --merge "${{ github.event.pull_request.number }}" --repo "${{ github.repository }}"
