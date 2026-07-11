@@ -39,3 +39,33 @@ Bevor hier etwas Substanzielles gebaut wird: `AGENTS.md` und die vier Spec-Datei
 ## Stack
 
 Next.js 15 App Router, TypeScript strict, Supabase (Postgres, Auth, Storage, pgvector), Anthropic Claude als LLM-Provider. Details und Begründung siehe `docs/decisions/`.
+
+## Lokal starten
+
+Voraussetzung: [Supabase CLI](https://supabase.com/docs/guides/cli) und Node/pnpm (Versionen siehe `.tool-versions`).
+
+```bash
+# Lokale Supabase-Instanz starten (Postgres, Auth, ...) und Migrations anwenden
+supabase start
+
+# Demo-Datensatz laden (Test-Agentur, Test-Nutzer, Test-Vorgänge; klar als
+# Testdaten markiert, siehe supabase/seed/seed.sql)
+psql "$(supabase status -o env | grep DB_URL | cut -d= -f2- | tr -d '\"')" -f supabase/seed/seed.sql
+
+# Next.js-App-Umgebungsvariablen setzen (Werte kommen aus `supabase status`)
+cp apps/web/.env.example apps/web/.env.local
+
+# App starten
+pnpm install
+pnpm --filter web dev
+```
+
+Danach unter `http://localhost:3000/login` mit einem der Seed-Logins anmelden (Passwort für alle: `test-passwort-nur-lokal`):
+
+| Rolle (UI-Label) | E-Mail |
+|---|---|
+| Chef | `chef@test-agentur.example` |
+| Etatdirektor:in (manager) | `manager@test-agentur.example` |
+| Berater:in (editor) | `editor@test-agentur.example` |
+
+Nach dem Login zeigt `/vorgaenge` die Test-Vorgänge, gefiltert über RLS entsprechend der Rolle des jeweiligen Nutzers.

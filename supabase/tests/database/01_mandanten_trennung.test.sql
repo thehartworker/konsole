@@ -1,8 +1,9 @@
+BEGIN;
+
 -- Test-Fall 1 (Issue #20): Eine Agentur sieht NIEMALS Daten einer anderen
 -- Agentur. Härteste Mandanten-Grenze, geprüft über agenturen, kunden,
 -- nutzer und vorgaenge, für Agentur A UND Agentur B (beide Richtungen).
 
-BEGIN;
 SELECT plan(10);
 
 SELECT tests.authenticate_as('a0000000-0000-0000-0000-000000000101'); -- chef_a

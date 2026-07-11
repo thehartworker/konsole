@@ -1,10 +1,11 @@
+BEGIN;
+
 -- Test-Fall 7 (Issue #20): Ein editor kann KEINE Guest-Freigabe anlegen
 -- (nur chef/manager). docs/decisions/2026-07-10_rls-policies.md,
 -- "Korrektur gegenüber der vorigen Fassung": die vorige Fassung erlaubte
 -- auch editor Guest-Freigaben, wurde bewusst auf chef/manager verschärft,
 -- weil Guest-Freigaben einen Außen-Zugriff eröffnen (Pharma-Kontext MENSCH).
 
-BEGIN;
 SELECT plan(3);
 
 SELECT tests.authenticate_as('a0000000-0000-0000-0000-000000000103'); -- editor_a1

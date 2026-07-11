@@ -1,8 +1,9 @@
+BEGIN;
+
 -- Test-Fall 2 (Issue #20): Ein editor sieht nur Vorgänge seiner zugewiesenen
 -- Kunden, nicht die anderer Kunden derselben Agentur. Editor A1 ist Kunde A1
 -- zugewiesen, NICHT Kunde A2 (Fixtures: 003_fixtures.sql).
 
-BEGIN;
 SELECT plan(5);
 
 SELECT tests.authenticate_as('a0000000-0000-0000-0000-000000000103'); -- editor_a1

@@ -1,3 +1,5 @@
+BEGIN;
+
 -- Test-Fall 8 (Issue #20): Das audit_log kann von niemandem per UPDATE oder
 -- DELETE verändert werden (append-only), außer über den DSGVO-Löschpfad
 -- (der laut docs/decisions/2026-07-10_rls-policies.md außerhalb der
@@ -6,7 +8,6 @@
 -- Lese-Rolle auf audit_log, um zu zeigen, dass selbst die privilegierteste
 -- Endnutzer-Rolle keinen Schreibzugriff hat.
 
-BEGIN;
 SELECT plan(4);
 
 SELECT tests.authenticate_as('a0000000-0000-0000-0000-000000000101'); -- chef_a

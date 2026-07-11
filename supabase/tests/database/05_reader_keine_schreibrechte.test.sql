@@ -1,9 +1,10 @@
+BEGIN;
+
 -- Test-Fall 5 (Issue #20): Ein reader kann Vorgänge sehen, aber nichts
 -- freigeben (keine Schreibrechte). vorgaenge_schreiben hat laut
 -- docs/decisions/2026-07-10_rls-policies.md bewusst keinen reader-Zweig
 -- ("Kann Vorgänge sehen, aber nicht freigeben").
 
-BEGIN;
 SELECT plan(3);
 
 SELECT tests.authenticate_as('a0000000-0000-0000-0000-000000000105'); -- reader_a
