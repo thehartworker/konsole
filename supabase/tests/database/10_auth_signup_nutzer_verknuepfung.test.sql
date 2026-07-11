@@ -72,22 +72,28 @@ SELECT ok(
 -- 3. Fail-closed: fehlende agentur_id bzw. fehlende rolle
 -- ============================================================
 
+-- throws_ok(sql, errcode, description) interpretiert das dritte Argument
+-- als erwartete Fehler-MELDUNG, nicht als Test-Beschreibung (die Variante
+-- mit Beschreibung ist throws_ok(sql, errcode, errmsg, description), nicht
+-- (sql, errcode, description)). Die 2-Parameter-Form prueft eindeutig nur
+-- den SQLSTATE-Code, ohne Message-Vergleich.
+--
+-- auth.users-Insert ohne agentur_id in user_metadata schlaegt fehl (fail-closed)
 SELECT throws_ok(
   $$ INSERT INTO auth.users (id, email, raw_user_meta_data) VALUES (
        'a0000000-0000-0000-0000-000000000303', 'ohne-agentur@example.com',
        jsonb_build_object('rolle', 'editor', 'name', 'Ohne Agentur (Test)')
      ) $$,
-  'P0001',
-  'auth.users-Insert ohne agentur_id in user_metadata schlaegt fehl (fail-closed)'
+  'P0001'
 );
 
+-- auth.users-Insert ohne rolle in user_metadata schlaegt fehl (fail-closed)
 SELECT throws_ok(
   $$ INSERT INTO auth.users (id, email, raw_user_meta_data) VALUES (
        'a0000000-0000-0000-0000-000000000304', 'ohne-rolle@example.com',
        jsonb_build_object('agentur_id', 'a0000000-0000-0000-0000-000000000001', 'name', 'Ohne Rolle (Test)')
      ) $$,
-  'P0001',
-  'auth.users-Insert ohne rolle in user_metadata schlaegt fehl (fail-closed)'
+  'P0001'
 );
 
 SELECT is(

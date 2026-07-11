@@ -75,11 +75,16 @@ INSERT INTO nutzer_kunden_zuweisungen (nutzer_id, kunde_id) VALUES
 -- agentur_id wird vom Konsistenz-Trigger aus kunde_id übernommen.
 -- ============================================================
 
-INSERT INTO vorgaenge (id, kunde_id, kanal, absender_identifikator, eingang_at, inhalt_text, sensitivity, zustaendige_nutzer_id) VALUES
-  ('a0000000-0000-0000-0000-000000001001', 'a0000000-0000-0000-0000-000000000011', 'email', 'kunde@kunde-a1.example', now() - interval '2 hours', 'Normaler Test-Vorgang bei Kunde A1.', 'normal', NULL),
-  ('a0000000-0000-0000-0000-000000001002', 'a0000000-0000-0000-0000-000000000011', 'email', 'kunde@kunde-a1.example', now() - interval '1 hour',  'Vertraulicher Test-Vorgang bei Kunde A1, nur Editor A1 zuständig.', 'vertraulich', 'a0000000-0000-0000-0000-000000000103'),
-  ('a0000000-0000-0000-0000-000000001003', 'a0000000-0000-0000-0000-000000000012', 'email', 'kunde@kunde-a2.example', now() - interval '3 hours', 'Normaler Test-Vorgang bei Kunde A2 (Editor A1/A2/Reader A NICHT zugewiesen).', 'normal', NULL),
-  ('a0000000-0000-0000-0000-000000001004', 'a0000000-0000-0000-0000-000000000021', 'email', 'kunde@kunde-b1.example', now() - interval '4 hours', 'Normaler Test-Vorgang bei Kunde B1, andere Agentur.', 'normal', NULL);
+-- betreff ist bei allen bis auf 1001 bewusst NULL (nicht jeder Vorgang hat
+-- im Fachmodell einen Betreff). Vorgang 1001 bekommt einen nicht-leeren Wert,
+-- weil Test 05 (reader_keine_schreibrechte) genau dieses Feld per UPDATE zu
+-- manipulieren versucht und beweisen muss, dass der ORIGINALWERT erhalten
+-- bleibt, nicht nur, dass ein zufälliges NULL unveraendert ist.
+INSERT INTO vorgaenge (id, kunde_id, kanal, absender_identifikator, eingang_at, betreff, inhalt_text, sensitivity, zustaendige_nutzer_id) VALUES
+  ('a0000000-0000-0000-0000-000000001001', 'a0000000-0000-0000-0000-000000000011', 'email', 'kunde@kunde-a1.example', now() - interval '2 hours', 'Rückfrage zur letzten Rechnung', 'Normaler Test-Vorgang bei Kunde A1.', 'normal', NULL),
+  ('a0000000-0000-0000-0000-000000001002', 'a0000000-0000-0000-0000-000000000011', 'email', 'kunde@kunde-a1.example', now() - interval '1 hour',  NULL, 'Vertraulicher Test-Vorgang bei Kunde A1, nur Editor A1 zuständig.', 'vertraulich', 'a0000000-0000-0000-0000-000000000103'),
+  ('a0000000-0000-0000-0000-000000001003', 'a0000000-0000-0000-0000-000000000012', 'email', 'kunde@kunde-a2.example', now() - interval '3 hours', NULL, 'Normaler Test-Vorgang bei Kunde A2 (Editor A1/A2/Reader A NICHT zugewiesen).', 'normal', NULL),
+  ('a0000000-0000-0000-0000-000000001004', 'a0000000-0000-0000-0000-000000000021', 'email', 'kunde@kunde-b1.example', now() - interval '4 hours', NULL, 'Normaler Test-Vorgang bei Kunde B1, andere Agentur.', 'normal', NULL);
 
 -- ============================================================
 -- anliegen
