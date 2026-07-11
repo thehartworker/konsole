@@ -37,16 +37,16 @@ Abweichungen vom Stack brauchen einen Design-Decision-Eintrag (siehe §5) mit kl
 
 ## 3. Arbeitsdisziplin (nicht verhandelbar)
 
-### 3.1 Stage-first, immer
+### 3.1 Main als einziger Integrationsbranch (temporär)
 
-Kein Direkt-Commit auf `main`. Alle Änderungen laufen über `stage`-Branch, dann PR nach `main`. `main` deployt automatisch auf Produktion, `stage` auf stage-Umgebung. Analog zum bestehenden Muster in Akquiro.
+Kein Direkt-Commit auf `main`. Alle Änderungen laufen über PRs.
 
 **Wichtig:** GitHub Branch-Protection ist auf diesem Repo technisch nicht durchgesetzt (persönliches Private-Repo ohne Team-Konto). Die Disziplin gilt als Konvention, nicht als technischer Zwang. Konkret:
 
 - Kein direkter Push auf `main`. Niemals. Auch nicht "kurz für ein Typo-Fix".
-- Feature-PRs gehen gegen `stage`.
-- Release-PRs gehen von `stage` nach `main` als bewusster Merge, mit passendem Commit-Titel ("Release YYYY-MM-DD" oder Feature-Rollup).
-- Alle Agent-PRs (claude-code-action) gehen automatisch gegen `stage`.
+- In der aktuellen Projektphase (vor produktivem Deployment) gehen alle PRs, inklusive aller Agent-PRs (claude-code-action), direkt gegen `main`. `main` ist bis auf Weiteres der einzige Integrationsbranch.
+
+**Bewusst temporär:** Diese Vereinfachung gilt nur, solange kein produktives Deployment existiert. Der `stage`-Branch wird wieder eingeführt, sobald ein Auto-Deployment steht, das bei `main`-Merges Produktion aktualisiert (Zwei-Branch-Modell mit `stage` als Vor-Produktions-Umgebung, Releases als bewusste PRs von `stage` nach `main`). Bis dahin verursacht ein separater `stage`-Branch nur Reibung ohne Nutzen, weil es keine Umgebung gibt, auf die er deployt.
 
 ### 3.2 Konzept-vor-Code
 
@@ -161,7 +161,7 @@ Ein Agent wird in der Regel durch eines dieser Ereignisse angestoßen:
 3. Falls die Task ein Feature betrifft, prüfe ob es in einer Design-Decision vor-diskutiert wurde. Falls nein: erstelle einen Vorschlag als Design-Decision und pausiere mit Rückfrage.
 4. Arbeite in einem eigenen Branch, benannt nach dem Muster `agent/<kurze-beschreibung>-<datum>`.
 5. Schreibe deinen Fortschritt in Commit-Messages, nicht in PR-Beschreibungen (leichter zu lesen).
-6. Wenn du fertig bist: öffne eine PR auf `stage`. In der PR-Beschreibung: was hast du gebaut, warum diese Wahl, was ist noch offen, wo würdest du gerne Feedback.
+6. Wenn du fertig bist: öffne eine PR auf `main` (siehe §3.1). In der PR-Beschreibung: was hast du gebaut, warum diese Wahl, was ist noch offen, wo würdest du gerne Feedback.
 7. Warte auf Review, bevor du weiter machst.
 
 ### 6.3 Was tun bei Unsicherheit

@@ -53,7 +53,39 @@ CREATE FUNCTION ist_kunde_zugewiesen(p_kunde_id uuid) RETURNS boolean
        SELECT 1 FROM nutzer_kunden_zuweisungen
        WHERE nutzer_id = auth.uid() AND kunde_id = p_kunde_id AND deleted_at IS NULL
      ) $$;
+
+CREATE FUNCTION darf_vorgang_sehen(p_vorgang_id uuid) RETURNS boolean
+  LANGUAGE sql STABLE SECURITY DEFINER AS
+  $$
+    SELECT EXISTS (
+      SELECT 1 FROM vorgaenge v
+      WHERE v.id = p_vorgang_id
+        AND v.agentur_id = current_agentur_id()
+        AND (
+          current_rolle() = 'chef'
+          OR (current_rolle() = 'manager' AND ist_kunde_zugewiesen(v.kunde_id))
+          OR (
+            current_rolle() IN ('editor', 'reader')
+            AND ist_kunde_zugewiesen(v.kunde_id)
+            AND (v.sensitivity = 'normal' OR v.zustaendige_nutzer_id = auth.uid())
+          )
+          OR (
+            current_rolle() = 'guest'
+            AND EXISTS (
+              SELECT 1 FROM nutzer_vorgang_freigaben f
+              WHERE f.vorgang_id = v.id
+                AND f.nutzer_id = auth.uid()
+                AND f.ablauf_at > now()
+            )
+          )
+        )
+    )
+  $$;
 ```
+
+`darf_vorgang_sehen()` kapselt die vollständige Sichtbarkeits-Logik aus `vorgaenge_lesen` (Agentur-Check, Rollen-Check, Kunden-Zuweisung, Sensitivity-Regel, Guest-Freigabe) an einer einzigen Stelle. `vorgaenge_lesen` selbst sowie jede Tabelle, deren Sichtbarkeit vollständig vom referenzierten Vorgang abhängt (`anliegen`, `handler_aufrufe`), rufen dieselbe Funktion auf, statt die Logik zu duplizieren oder — wie zuvor bei `anliegen`/`handler_aufrufe` — nur einen reinen `EXISTS`-Check gegen `vorgaenge` zu machen, der lediglich Existenz, nicht Sichtbarkeit prüft.
+
+Warum `SECURITY DEFINER` hier sicher ist: die Funktion nimmt genau einen Parameter entgegen (`p_vorgang_id`), keinen Nutzer- oder Rollen-Parameter. Jede interne Prüfung hängt an `auth.uid()` (Session-gebunden, nicht durch den Aufrufer überschreibbar) und an `v.agentur_id = current_agentur_id()`. Ein Aufrufer kann also höchstens eine beliebige `vorgang_id` übergeben, aber die Funktion liefert für einen Vorgang einer fremden Agentur oder eines nicht zugewiesenen Kunden `false`, weil dieselbe Agentur-/Rollen-/Zuweisungs-Prüfung greift wie in `vorgaenge_lesen`. Es gibt keinen Parameter-Durchgriff, über den sich eine höhere Berechtigung als die eigene Session erschleichen ließe.
 
 #### `agenturen`
 
@@ -116,45 +148,37 @@ Das ist die Policy mit der in Aufgabe 2b korrigierten Semantik: Picking (Decisio
 
 ```sql
 CREATE POLICY vorgaenge_lesen ON vorgaenge FOR SELECT
-  USING (
-    agentur_id = current_agentur_id()
-    AND (
-      current_rolle() = 'chef'
-      OR (current_rolle() IN ('manager') AND ist_kunde_zugewiesen(kunde_id))
-      OR (
-        current_rolle() IN ('editor', 'reader')
-        AND ist_kunde_zugewiesen(kunde_id)
-        AND (sensitivity = 'normal' OR zustaendige_nutzer_id = auth.uid())
-      )
-      OR (
-        current_rolle() = 'guest'
-        AND EXISTS (
-          SELECT 1 FROM nutzer_vorgang_freigaben f
-          WHERE f.vorgang_id = vorgaenge.id
-            AND f.nutzer_id = auth.uid()
-            AND f.ablauf_at > now()
-        )
-      )
-    )
-  );
+  USING (darf_vorgang_sehen(id));
 
 CREATE POLICY vorgaenge_schreiben ON vorgaenge FOR UPDATE
   USING (
     agentur_id = current_agentur_id()
     AND (
+      -- chef: alle Vorgänge der Agentur bearbeiten
       current_rolle() = 'chef'
-      OR (current_rolle() IN ('manager', 'editor') AND ist_kunde_zugewiesen(kunde_id)
-          AND (sensitivity = 'normal' OR zustaendige_nutzer_id = auth.uid() OR current_rolle() = 'manager'))
+      -- manager: Vorgänge zugewiesener Kunden bearbeiten, inklusive sensitive
+      OR (current_rolle() = 'manager' AND ist_kunde_zugewiesen(kunde_id))
+      -- editor: Vorgänge zugewiesener Kunden, sensitive nur wenn zuständige Person
+      OR (
+        current_rolle() = 'editor'
+        AND ist_kunde_zugewiesen(kunde_id)
+        AND (sensitivity = 'normal' OR zustaendige_nutzer_id = auth.uid())
+      )
+      -- reader, guest: kein Zweig hier, siehe Anmerkung unten
     )
   )
   WITH CHECK (agentur_id = current_agentur_id());
 ```
 
-Wichtige Details, direkt aus §9.3 abgeleitet:
+`vorgaenge_lesen` ruft `darf_vorgang_sehen()` auf (siehe Helper-Funktionen oben) statt die Sichtbarkeits-Logik inline zu wiederholen. Das ist dieselbe Logik wie zuvor, jetzt an einer Stelle definiert, sodass `anliegen_lesen` und `handler_aufrufe_lesen` (unten) dieselbe Funktion statt eines reinen Existenz-Checks verwenden können.
 
-- "Sensitive Vorgänge (sensitivity != 'normal') sind nur für Chef, Manager und die zuständige Beraterin sichtbar" → für `manager` gibt es **keine** zusätzliche Sensitivity-Bedingung (Manager sieht alle sensitiven Vorgänge der zugewiesenen Kunden), für `editor`/`reader` **gibt es** die zusätzliche Bedingung (`sensitivity = 'normal' OR zustaendige_nutzer_id = auth.uid()`). Das ist keine Inkonsistenz, sondern die wörtliche Lesart: Manager steht explizit in der "darf sensitive sehen"-Liste, andere Beraterinnen nur wenn sie die zuständige Person sind.
-- `reader` bekommt keine `vorgaenge_schreiben`-Policy (§9.2: "Kann Vorgänge sehen, aber nicht freigeben").
-- `guest` bekommt gar keine Schreib-Policy auf `vorgaenge` (§9.2 beschreibt die Externe Rolle rein lesend über freigegebene Einzel-Vorgänge, keine Bearbeitungsrechte erwähnt).
+`vorgaenge_schreiben` ist bewusst in getrennte, klar lesbare Rollen-Zweige geschrieben (statt einer verschachtelten ODER-Kette mit Manager-Ausnahme), analog zur Struktur, die `darf_vorgang_sehen()` für die Lese-Policy kapselt:
+
+- **chef:** alle Vorgänge der Agentur bearbeiten.
+- **manager:** Vorgänge zugewiesener Kunden bearbeiten, inklusive sensitive (kein Sensitivity-Zweig nötig, Manager steht explizit in der "darf sensitive sehen/bearbeiten"-Liste aus §9.3).
+- **editor:** Vorgänge zugewiesener Kunden, sensitive nur wenn `zustaendige_nutzer_id = auth.uid()`.
+- **reader:** keine Schreib-Policy (§9.2: "Kann Vorgänge sehen, aber nicht freigeben").
+- **guest:** keine Schreib-Policy (§9.2 beschreibt die Externe Rolle rein lesend über freigegebene Einzel-Vorgänge, keine Bearbeitungsrechte erwähnt).
 
 #### `anliegen` und `handler_aufrufe`
 
@@ -162,19 +186,19 @@ Wichtige Details, direkt aus §9.3 abgeleitet:
 CREATE POLICY anliegen_lesen ON anliegen FOR SELECT
   USING (
     agentur_id = current_agentur_id()
-    AND EXISTS (SELECT 1 FROM vorgaenge v WHERE v.id = anliegen.vorgang_id)
-    -- vorgaenge-RLS greift transitiv über die USING-Klausel der referenzierten Zeile,
-    -- deshalb reicht hier keine zusätzliche Sensitivity-Prüfung auf anliegen selbst
+    AND darf_vorgang_sehen(vorgang_id)
   );
 
 CREATE POLICY handler_aufrufe_lesen ON handler_aufrufe FOR SELECT
   USING (
     agentur_id = current_agentur_id()
-    AND EXISTS (SELECT 1 FROM vorgaenge v WHERE v.id = handler_aufrufe.vorgang_id)
+    AND darf_vorgang_sehen(vorgang_id)
   );
 ```
 
-`anliegen` und `handler_aufrufe` haben keine eigene Sensitivity-Spalte, sie erben die Sichtbarkeits-Entscheidung vollständig vom referenzierten `vorgang_id`. Die Policies oben prüfen nur `agentur_id` direkt (Performance, siehe Decision 1 Options-Begründung) und verlassen sich darauf, dass Postgres pro Zeile beide Policies (auf `vorgaenge` und auf der Kind-Tabelle) auswertet, wenn über einen Join gelesen wird. Für einen direkten Zugriff ohne Join ist der `EXISTS`-Check gegen `vorgaenge` nötig, der implizit dieselbe Rollen-Logik nachzieht, ohne sie zu duplizieren.
+**Korrektur gegenüber der vorigen Fassung:** Die vorige Fassung prüfte hier nur `EXISTS (SELECT 1 FROM vorgaenge v WHERE v.id = anliegen.vorgang_id)`, also lediglich, ob der referenzierte Vorgang existiert, nicht ob der eingeloggte Nutzer ihn sehen darf. Der Kommentar in der vorigen Fassung behauptete, die `vorgaenge`-RLS greife "transitiv" über die referenzierte Zeile — das ist falsch: eine `USING`-Klausel auf `anliegen` löst keine erneute RLS-Auswertung auf `vorgaenge` aus, ein reiner `EXISTS`-Join sieht die Zielzeile unabhängig von deren eigener Policy. Das war ein Sicherheitsloch: ein `editor`, der einen sensitiven Vorgang nicht sehen darf (weil er nicht die zuständige Person ist), konnte über diese Policy trotzdem die `beschreibung` der `anliegen` und das komplette Handler-Ergebnis aus `handler_aufrufe` lesen, weil der reine Existenz-Check den Sensitivity-Schutz aus §9.3 nicht nachbildet.
+
+`anliegen` und `handler_aufrufe` haben keine eigene Sensitivity-Spalte, sie erben die Sichtbarkeits-Entscheidung vollständig vom referenzierten `vorgang_id`. Die Policies oben prüfen deshalb `agentur_id` direkt (billiger Vorab-Filter, gleiche Performance-Begründung wie zuvor) und zusätzlich `darf_vorgang_sehen(vorgang_id)`, das dieselbe vollständige Rollen-, Zuweisungs- und Sensitivity-Logik wie `vorgaenge_lesen` anwendet, statt sie zu duplizieren oder nur die Existenz der Zielzeile zu prüfen.
 
 #### `nutzer_vorgang_freigaben`
 
@@ -188,12 +212,14 @@ CREATE POLICY freigaben_lesen ON nutzer_vorgang_freigaben FOR SELECT
 CREATE POLICY freigaben_anlegen ON nutzer_vorgang_freigaben FOR INSERT
   WITH CHECK (
     agentur_id = current_agentur_id()
-    AND current_rolle() IN ('chef', 'manager', 'editor')
+    AND current_rolle() IN ('chef', 'manager')
     AND freigegeben_durch = auth.uid()
   );
 ```
 
-`chef`/`manager` sehen alle Freigaben ihrer Agentur bzw. ihrer zugewiesenen Kunden (Überblick, wer welchem Guest was freigegeben hat). `guest` sieht nur die eigenen Freigaben (nötig, damit die Konsolen-UI dem Guest anzeigen kann, welche Vorgänge für ihn freigegeben sind und wann der Zugang abläuft). Freigaben anlegen dürfen `chef`, `manager` und `editor` (§9.2 nennt keine explizite Einschränkung, wer Externe freischalten darf, aber Reader/Guest selbst dürfen keine eigenen oder fremden Freigaben erzeugen, sonst könnte ein Guest sich selbst Zugriff auf weitere Vorgänge verschaffen).
+`chef`/`manager` sehen alle Freigaben ihrer Agentur bzw. ihrer zugewiesenen Kunden (Überblick, wer welchem Guest was freigegeben hat). `guest` sieht nur die eigenen Freigaben (nötig, damit die Konsolen-UI dem Guest anzeigen kann, welche Vorgänge für ihn freigegeben sind und wann der Zugang abläuft).
+
+**Korrektur gegenüber der vorigen Fassung:** Freigaben anlegen dürfen nur noch `chef` und `manager`, nicht mehr `editor`. Die vorige Fassung erlaubte auch dem `editor`, Guest-Freigaben zu erstellen, mit der Begründung, §9.2 nenne keine explizite Einschränkung. Das geht bei vertraulichkeits-sensitiven Kunden (Pharma-Kontext MENSCH) zu weit: Guest-Freigaben sind vertraulichkeits-relevant, weil sie einen Außen-Zugriff auf einen Vorgang eröffnen, und ein `editor` soll keine Außen-Zugriffe erzeugen können, ohne dass Chef oder Manager das kontrollieren. Reader/Guest selbst dürfen weiterhin keine eigenen oder fremden Freigaben erzeugen, sonst könnte ein Guest sich selbst Zugriff auf weitere Vorgänge verschaffen.
 
 #### `audit_log`
 
@@ -217,6 +243,6 @@ CREATE POLICY audit_log_lesen ON audit_log FOR SELECT
 
 - Der Klassifikations-Hintergrund-Job und die Handler-Worker laufen mit der Supabase Service-Role (RLS-Bypass), weil sie agenturweit über alle Kunden hinweg picken müssen (Decision 1, §12.1) und zum Picking-Zeitpunkt noch kein `zustaendige_nutzer_id` existiert, gegen den eine Nutzer-Session-Policy filtern könnte. Das ist kein "Umgehen der RLS" im Sinne von `AGENTS.md` §4 (das Verbot zielt auf Endnutzer-Zugriffe, nicht auf privilegierte, klar abgegrenzte Hintergrund-Prozesse), aber es bedeutet: der Worker-Code selbst trägt die Verantwortung für korrekte `agentur_id`-Filterung, weil ihn Postgres nicht mehr schützt. Das sollte in einer Test-Suite mit RLS-Assertions (`BUILD_PLAN_v1.0.md` Woche 2, Panel-Empfehlung Wächter) explizit mitgetestet werden, auch für den Service-Role-Pfad.
 - Jede neue Tabelle mit `agentur_id` (siehe Decision 1) braucht mindestens eine `SELECT`-Policy nach demselben Muster, sonst blockiert RLS standardmäßig jeden Zugriff (Supabase-Default: RLS aktiviert, keine Policy = kein Zugriff für alle außer Service-Role). Das ist die sichere Ausfallrichtung, aber ein Onboarding-Schritt für zukünftige Migrations, den diese Decision hier explizit macht, nicht implizit lässt.
-- `ist_kunde_zugewiesen()` und `current_rolle()` als `SECURITY DEFINER`-Funktionen sind ein bewusster Bruch mit "RLS soll möglichst einfach sein": sie sind nötig, um rekursive Policy-Auswertung auf `nutzer` selbst zu vermeiden (eine Policy auf `nutzer`, die wieder `nutzer` abfragt, um die eigene Rolle zu bestimmen, wäre zirkulär). Das ist Standard-Supabase-Praxis, aber sollte in der Migration mit Kommentar versehen werden, warum `SECURITY DEFINER` hier sicher ist (kein Parameter-Durchgriff auf beliebige `nutzer_id`, nur `auth.uid()`).
+- `ist_kunde_zugewiesen()`, `current_rolle()` und `darf_vorgang_sehen()` als `SECURITY DEFINER`-Funktionen sind ein bewusster Bruch mit "RLS soll möglichst einfach sein": die ersten beiden sind nötig, um rekursive Policy-Auswertung auf `nutzer` selbst zu vermeiden (eine Policy auf `nutzer`, die wieder `nutzer` abfragt, um die eigene Rolle zu bestimmen, wäre zirkulär), `darf_vorgang_sehen()` kapselt die vollständige Sichtbarkeits-Logik für `vorgaenge` an einer Stelle, damit `anliegen_lesen`/`handler_aufrufe_lesen` sie wiederverwenden können, statt sie zu duplizieren oder nur einen Existenz-Check zu machen (siehe Korrektur oben zum vorigen RLS-Loch). Das ist Standard-Supabase-Praxis, aber sollte in der Migration mit Kommentar versehen werden, warum `SECURITY DEFINER` in jedem Fall sicher ist: kein Parameter-Durchgriff auf beliebige `nutzer_id`, nur `auth.uid()`, und bei `darf_vorgang_sehen()` zusätzlich kein Parameter-Durchgriff außer der `vorgang_id` selbst, die intern wieder gegen `agentur_id = current_agentur_id()` geprüft wird.
 
 **Offene Fragen (für Bastian):** keine mehr offen für diese Decision. Die einzige übergreifende offene Frage (Verschlüsselung at-rest) ist in `docs/decisions/2026-07-10_datenmodell.md` dokumentiert, weil sie Datenmodell- statt RLS-Scope ist (RLS regelt wer eine Zeile sehen darf, nicht wie sie auf der Platte liegt).
