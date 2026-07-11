@@ -10,14 +10,10 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version-file: '.tool-versions'
-
       - name: Lint (placeholder)
         run: |
           echo "lint placeholder"
@@ -26,31 +22,77 @@ jobs:
   type-check:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version-file: '.tool-versions'
-
       - name: Type-check (placeholder)
         run: |
           echo "type-check placeholder"
           exit 0
 
-  test:
+  rls-tests:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - name: Postgres+pgTAP-Test-Image bauen
+        run: |
+          cat > Dockerfile.pgtap <<'EOF'
+          FROM postgres:16
+          RUN apt-get update \
+            && apt-get install -y --no-install-recommends postgresql-16-pgtap \
+            && rm -rf /var/lib/apt/lists/*
+          EOF
+          docker build -f Dockerfile.pgtap -t konsole-pgtap:ci .
+
+      - name: Postgres-Container starten
+        run: |
+          docker run -d --name konsole-pg -e POSTGRES_PASSWORD=postgres -p 5432:5432 konsole-pgtap:ci
+          until docker exec konsole-pg pg_isready -U postgres; do sleep 1; done
+
+      - name: psql-Client und pg_prove installieren
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends postgresql-client-16 libtap-parser-sourcehandler-pgtap-perl
+
+      - name: Auth-Stub, Migrations, Extension, Grants, Helfer, Fixtures anwenden
+        env:
+          PGHOST: localhost
+          PGPORT: 5432
+          PGUSER: postgres
+          PGPASSWORD: postgres
+          PGDATABASE: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -f supabase/tests/helpers/000_auth_roles_and_uid.sql
+          for f in supabase/migrations/*.sql; do psql -v ON_ERROR_STOP=1 -f "$f"; done
+          psql -v ON_ERROR_STOP=1 -c "CREATE EXTENSION IF NOT EXISTS pgtap;"
+          psql -v ON_ERROR_STOP=1 -f supabase/tests/helpers/001_grants.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/tests/helpers/002_test_helpers.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/tests/helpers/003_fixtures.sql
+
+      - name: pgTAP-RLS-Suite ausführen
+        env:
+          PGHOST: localhost
+          PGPORT: 5432
+          PGUSER: postgres
+          PGPASSWORD: postgres
+          PGDATABASE: postgres
+        run: pg_prove --ext .test.sql -v supabase/tests/database/
+
+      - name: Postgres-Container stoppen
+        if: always()
+        run: docker rm -f konsole-pg
+
+  test:
+    needs: rls-tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version-file: '.tool-versions'
-
-      - name: Test (placeholder)
+      - name: Test (placeholder für App-Tests, folgt mit PR 3)
         run: |
           echo "test placeholder"
           exit 0
