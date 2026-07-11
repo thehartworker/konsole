@@ -161,7 +161,7 @@ Ein Agent wird in der Regel durch eines dieser Ereignisse angestoßen:
 3. Falls die Task ein Feature betrifft, prüfe ob es in einer Design-Decision vor-diskutiert wurde. Falls nein: erstelle einen Vorschlag als Design-Decision und pausiere mit Rückfrage.
 4. Arbeite in einem eigenen Branch, benannt nach dem Muster `agent/<kurze-beschreibung>-<datum>`.
 5. Schreibe deinen Fortschritt in Commit-Messages, nicht in PR-Beschreibungen (leichter zu lesen).
-6. Wenn du fertig bist: öffne eine PR auf `main` (siehe §3.1). In der PR-Beschreibung: was hast du gebaut, warum diese Wahl, was ist noch offen, wo würdest du gerne Feedback.
+6. Wenn du fertig bist: öffne eine PR auf `main` (siehe §3.1). In der PR-Beschreibung: was hast du gebaut, warum diese Wahl, was ist noch offen, wo würdest du gerne Feedback. Agent-Läufe öffnen ihre PR selbst, sobald die aktualisierte `claude.yml` aktiv ist (siehe §11).
 7. Warte auf Review, bevor du weiter machst.
 
 ### 6.3 Was tun bei Unsicherheit
@@ -169,6 +169,16 @@ Ein Agent wird in der Regel durch eines dieser Ereignisse angestoßen:
 - Wenn du unsicher bist ob eine Design-Entscheidung Bastian braucht: erstelle eine Design-Decision mit Status "vorgeschlagen" und pausiere.
 - Wenn du unsicher bist ob eine Bibliothek in Frage kommt: recherchiere kurz, dokumentiere die Wahl in einem Kommentar, mach weiter. Falls die Wahl später zurückgezogen werden muss, ist der Aufwand klein.
 - Wenn du auf einen Bug im bestehenden Code stößt der nicht zur Task gehört: dokumentiere ihn in einem separaten Issue, fixe ihn nicht im laufenden PR.
+
+### 6.4 Benachrichtigungs-Markierungen (verbindlich)
+
+Damit Bastian auf dem Handy gepingt wird, wenn er wirklich gebraucht wird, markiert jeder Agent-Lauf ihn in genau diesen drei Fällen mit einem festen Präfix am Anfang eines PR- oder Issue-Kommentars (der Präfix löst die GitHub-Mobile-Push-Benachrichtigung zuverlässig aus):
+
+- **Strategische Entscheidung nötig:** Kommentar beginnt mit `@thehartworker Entscheidung nötig:`, gefolgt von der konkreten Frage und den Optionen.
+- **Sicherheits-relevanter PR ohne Auto-Merge:** wenn der PR etwas unter `supabase/`, `packages/`, `apps/` ändert oder auth-/secret-bezogen ist und nicht automatisch gemerged wird, beginnt der Kommentar mit `@thehartworker Review nötig:`, gefolgt von einer Zwei-Satz-Zusammenfassung, worauf beim Review zu achten ist.
+- **Blockiert oder fehlgeschlagen:** Kommentar beginnt mit `@thehartworker Blockiert:`, gefolgt von der kurzen Begründung.
+
+Kein anderer Kommentar-Typ bekommt diese Präfixe, sonst verlieren sie ihre Signalwirkung.
 
 ---
 
@@ -277,7 +287,29 @@ Dieser Layer wird in den Wochen 3 und 4 gebaut, siehe `BUILD_PLAN_v0.1.md`.
 
 ---
 
-## 11. Kontakt bei Grundsatzfragen
+## 11. Automatisierter Arbeitsablauf
+
+Ab jetzt läuft ein Teil der Zusammenarbeit zwischen Agent-Läufen und Bastian bewusst automatisiert, damit Bastian nur noch bei echten Entscheidungen und bei Sicherheits-relevanten Änderungen eingreifen muss.
+
+### 11.1 Was automatisch läuft
+
+- **Selbst-PRs:** sobald die aktualisierte `claude.yml` (mit `pull-requests: write`, `contents: write`, `issues: write`) aktiv ist, öffnet ein Agent-Lauf seine PR selbst, ohne dass Bastian den "Create PR"-Link klicken muss.
+- **Auto-Merge für Doku und Konzept:** PRs, die ausschließlich `docs/`, `docs/decisions/` oder Root-`*.md`-Dateien (README, AGENTS) ändern, grüne Status-Checks haben, kein Draft sind und keine Datei unter `supabase/`, `packages/`, `apps/`, `.github/` oder mit "auth"/"secret"/"env" im Namen anfassen, werden automatisch per Merge-Commit gemerged (siehe `.github/workflows/auto-merge.yml`).
+- **Benachrichtigungs-Markierungen:** siehe §6.4. Diese laufen bei jedem Agent-Lauf mit, unabhängig davon ob der PR auto-merged wird.
+
+### 11.2 Was immer bei Bastian bleibt
+
+- Der Merge von allem, was Sicherheits-relevant ist: `supabase/`, `packages/`, `apps/`, `.github/`, sowie alles mit Auth-, Secret- oder Env-Bezug.
+- Alle strategischen und produkt-strategischen Entscheidungen (siehe §12 Kontakt-Abschnitt unten).
+- Alles mit Konto-, Zahlungs- oder Rechtspersonen-Bezug (Gesellschaftsgründung, Verträge, AVV, Zahlungsanbieter).
+
+### 11.3 Geltungsbereich
+
+Diese Automatik ist bewusst auf die aktuelle Projektphase zugeschnitten (vor produktivem Deployment, kleines privates Repo ohne Team-Konto, siehe §3.1). Sie kann jederzeit zurückgedreht werden, wenn sich die Risikolage ändert (z. B. bei produktivem Deployment oder wenn Bastian das explizit entscheidet).
+
+---
+
+## 12. Kontakt bei Grundsatzfragen
 
 Für strategische oder produkt-strategische Fragen: Bastian Scherbeck (Repo-Owner). Nicht selbst entscheiden, sondern in einer Design-Decision zur Diskussion stellen.
 
