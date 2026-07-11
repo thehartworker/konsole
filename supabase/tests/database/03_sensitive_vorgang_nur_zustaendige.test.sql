@@ -1,9 +1,10 @@
+BEGIN;
+
 -- Test-Fall 3 (Issue #20): Ein editor sieht einen sensitiven Vorgang
 -- (sensitivity != normal) NUR, wenn er die zuständige Person ist.
 -- Vorgang a0000000-...-001002 ist 'vertraulich', zuständig ist Editor A1.
 -- Editor A2 ist demselben Kunden (A1) zugewiesen, aber NICHT zuständig.
 
-BEGIN;
 SELECT plan(5);
 
 SELECT tests.authenticate_as('a0000000-0000-0000-0000-000000000103'); -- editor_a1, zuständig

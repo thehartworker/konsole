@@ -1,3 +1,5 @@
+BEGIN;
+
 -- Test-Fall (Issue #20, PR 2): der handle_new_user()-Trigger aus
 -- 20260711140000_auth_nutzer_verknuepfung.sql erzeugt bei jeder
 -- auth.users-Anlage zuverlaessig eine passende nutzer-Zeile, und die daraus
@@ -8,7 +10,6 @@
 -- vorab-fixturierte Test-Nutzer gilt, sondern fuer den tatsaechlichen
 -- Anlage-Weg ueber auth.users.
 
-BEGIN;
 SELECT plan(12);
 
 -- ============================================================

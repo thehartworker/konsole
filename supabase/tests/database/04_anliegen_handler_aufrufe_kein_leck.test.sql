@@ -1,3 +1,5 @@
+BEGIN;
+
 -- Test-Fall 4 (Issue #20): Über anliegen und handler_aufrufe kann ein editor
 -- NICHT die Inhalte eines sensitiven Vorgangs lesen, den er nicht sehen darf.
 -- Das war das kritische RLS-Loch, das mit darf_vorgang_sehen() geschlossen
@@ -8,7 +10,6 @@
 -- EXISTS-Variante hätte ihm die Zeile also fälschlich gezeigt), ist aber
 -- nicht zuständig für den sensitiven Vorgang.
 
-BEGIN;
 SELECT plan(6);
 
 SELECT tests.authenticate_as('a0000000-0000-0000-0000-000000000103'); -- editor_a1, zuständig

@@ -1,3 +1,5 @@
+BEGIN;
+
 -- Test-Fall 9 (Issue #20): Die agentur_id-Konsistenz-Trigger verhindern das
 -- Einschmuggeln einer fremden agentur_id beim Insert (Migration
 -- 20260711130300_agentur_id_konsistenz_trigger.sql). Jeder Trigger
@@ -9,7 +11,6 @@
 -- gar keine INSERT-RLS-Policy gibt; dieser Test prüft den Trigger-Mechanismus
 -- selbst, nicht RLS.
 
-BEGIN;
 SELECT plan(5);
 
 -- vorgaenge: kunde_id gehört zu Agentur A, agentur_id wird explizit auf
