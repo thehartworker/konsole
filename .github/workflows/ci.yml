@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main, stage]
+  push:
+    branches: [stage]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.tool-versions'
+
+      - name: Lint (placeholder)
+        run: |
+          echo "lint placeholder"
+          exit 0
+
+  type-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.tool-versions'
+
+      - name: Type-check (placeholder)
+        run: |
+          echo "type-check placeholder"
+          exit 0
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.tool-versions'
+
+      - name: Test (placeholder)
+        run: |
+          echo "test placeholder"
+          exit 0
