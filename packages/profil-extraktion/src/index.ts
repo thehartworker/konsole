@@ -44,3 +44,18 @@ export {
   waehleRelevanteSeiten,
   type RobotsRegelwerk,
 } from './website-regeln.js';
+
+export { htmlZuText } from './html-text.js';
+
+export {
+  ProduktiverDokumentTextProvider,
+  type ProduktiverDokumentTextProviderOptionen,
+  type RohTextExtraktor,
+  type RohTextExtraktoren,
+} from './dokument-text-provider.js';
+
+export {
+  ProduktiverWebsiteTextProvider,
+  KONSOLE_PROFIL_BOT_USER_AGENT,
+  type ProduktiverWebsiteTextProviderOptionen,
+} from './website-text-provider.js';

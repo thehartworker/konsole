@@ -12,3 +12,8 @@ export {
   FakeKundenProfilRepository,
   type FakeKundenProfilRepositoryOptions,
 } from './fake-kundenprofil-repository.js';
+
+export {
+  FakeKundenQuelldokumenteRepository,
+  type FakeKundenQuelldokumenteRepositoryOptions,
+} from './fake-kunden-quelldokumente-repository.js';

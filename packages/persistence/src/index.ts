@@ -37,6 +37,10 @@ export {
   type KundenProfilFeldStatus,
   type KundenProfilFeldStatusEintrag,
   type KundenProfilListenTabelle,
+  type KundenProfilListenVorschlagTabelle,
+  type KundenProfilKernVorschlagsFelder,
+  type KundenProfilListenVorschlagEingabe,
+  type KundenProfilVorschlagResultat,
   type KundenBoilerplateZeile,
   type KundenKennzahlenZeile,
   type KundenSprecherZeile,
@@ -54,3 +58,23 @@ export {
   type FuehreW2AusEingabe,
   type FuehreW2AusResultat,
 } from './w2-orchestrierung.js';
+
+export { istInhaltlichAehnlich, filterDubletten, type FilterDublettenErgebnis } from './aehnlichkeit.js';
+
+export {
+  SupabaseKundenQuelldokumenteRepository,
+  type KundenQuelldokumenteRepository,
+  type KundenQuelldokumentZeile,
+  type KundenQuelldokumentExtraktionStatus,
+} from './kunden-quelldokumente.js';
+
+export {
+  extrahiereUndPersistiereProfil,
+  verarbeiteDokumentUndPersistiereProfil,
+  verarbeiteWebsiteUndPersistiereProfil,
+  type ExtrahiereUndPersistiereProfilEingabe,
+  type ExtrahiereUndPersistiereProfilResultat,
+  type ProfilExtraktionErgebnisProText,
+  type VerarbeiteDokumentUndPersistiereProfilEingabe,
+  type VerarbeiteWebsiteUndPersistiereProfilEingabe,
+} from './profil-extraktion-orchestrierung.js';

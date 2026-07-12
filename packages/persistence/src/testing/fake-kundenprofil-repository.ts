@@ -7,6 +7,8 @@
 
 import { W2_HANDLER_SLUG } from '@konsole/handlers';
 import type { PraezedenzEintrag, SprachregelungsEintrag, W2KontextQuellenProvider, W2KundeKontextInput, Pruefregel } from '@konsole/handlers';
+import type { ProfilExtraktionsQuelle } from '@konsole/profil-extraktion';
+import { filterDubletten } from '../aehnlichkeit.js';
 import {
   grenzeAlsPruefregel,
   type KundenBoilerplateZeile,
@@ -19,11 +21,17 @@ import {
   type KundenProfil,
   type KundenProfilElementStatus,
   type KundenProfilKern,
+  type KundenProfilKernVorschlagsFelder,
   type KundenProfilListenTabelle,
+  type KundenProfilListenVorschlagEingabe,
+  type KundenProfilListenVorschlagTabelle,
   type KundenProfilRepository,
+  type KundenProfilVorschlagResultat,
   type KundenSprecherZeile,
   type KundenThemaZeile,
 } from '../kundenprofil.js';
+
+let fakeListenElementIdZaehler = 0;
 
 function defaultKern(kundeId: string): KundenProfilKern {
   return {
@@ -162,6 +170,105 @@ export class FakeKundenProfilRepository implements KundenProfilRepository {
           (zeile.typ === 'verbotene_aussage' || zeile.typ === 'pflichtbaustein'),
       )
       .map((zeile) => grenzeAlsPruefregel(zeile, handlerSlug));
+  }
+
+  async kernFelderVorschlagen(
+    kundeId: string,
+    felder: KundenProfilKernVorschlagsFelder,
+    quelle: ProfilExtraktionsQuelle,
+    stand: string,
+  ): Promise<void> {
+    const bestehend = this.kern.get(kundeId);
+    const bestehenderFeldStatus = bestehend?.feld_status ?? {};
+    const zuAktualisieren: Record<string, unknown> = {};
+    const neuerFeldStatus = { ...bestehenderFeldStatus };
+
+    for (const [feldname, wert] of Object.entries(felder)) {
+      if (wert === null || wert === undefined) continue; // "nicht belegbar" darf kein bestehendes Feld leeren
+      if (bestehenderFeldStatus[feldname]?.status === 'freigegeben') continue; // Nicht-Überschreiben-Regel
+      zuAktualisieren[feldname] = wert;
+      neuerFeldStatus[feldname] = { status: 'abgeleitet', quelle, stand };
+    }
+
+    if (Object.keys(zuAktualisieren).length === 0) return;
+
+    const basis = bestehend ?? defaultKern(kundeId);
+    this.kern.set(kundeId, { ...basis, ...zuAktualisieren, feld_status: neuerFeldStatus });
+  }
+
+  async listenElementeVorschlagen(eingabe: KundenProfilListenVorschlagEingabe): Promise<KundenProfilVorschlagResultat> {
+    const { tabelle, kundeId, zeilen, vergleichsSchluessel, quelle } = eingabe;
+    if (zeilen.length === 0) return { eingefuegt: 0, dublettenUebersprungen: 0 };
+
+    const bestehendeZeilen = this.alleZeilenFuer(tabelle, kundeId);
+    const bestehendeSchluessel = bestehendeZeilen.map((zeile) => vergleichsSchluessel(zeile));
+    const { einzufuegen, dublettenUebersprungen } = filterDubletten(zeilen, bestehendeSchluessel, vergleichsSchluessel);
+
+    for (const zeile of einzufuegen) {
+      fakeListenElementIdZaehler += 1;
+      this.zeileHinzufuegen(tabelle, {
+        id: `fake-${tabelle}-${fakeListenElementIdZaehler}`,
+        kunde_id: kundeId,
+        status: 'abgeleitet',
+        herkunft: quelle,
+        ...zeile,
+      });
+    }
+
+    return { eingefuegt: einzufuegen.length, dublettenUebersprungen };
+  }
+
+  private alleZeilenFuer(tabelle: KundenProfilListenVorschlagTabelle, kundeId: string): Record<string, unknown>[] {
+    switch (tabelle) {
+      case 'kunden_boilerplate':
+        return this.boilerplate.filter((zeile) => zeile.kunde_id === kundeId);
+      case 'kunden_kennzahlen':
+        return this.kennzahlen.filter((zeile) => zeile.kunde_id === kundeId);
+      case 'kunden_sprecher':
+        return this.sprecher.filter((zeile) => zeile.kunde_id === kundeId);
+      case 'kunden_kernbotschaften':
+        return this.kernbotschaften.filter((zeile) => zeile.kunde_id === kundeId);
+      case 'kunden_themen':
+        return this.themen.filter((zeile) => zeile.kunde_id === kundeId);
+      case 'kunden_grenzen':
+        return this.grenzen.filter((zeile) => zeile.kunde_id === kundeId);
+      case 'kunden_medien_kontext':
+        return this.medienKontext.filter((zeile) => zeile.kunde_id === kundeId);
+      default: {
+        const unbekannt: never = tabelle;
+        throw new Error(`FakeKundenProfilRepository: unbekannte Listen-Vorschlag-Tabelle "${String(unbekannt)}"`);
+      }
+    }
+  }
+
+  private zeileHinzufuegen(tabelle: KundenProfilListenVorschlagTabelle, zeile: Record<string, unknown>): void {
+    switch (tabelle) {
+      case 'kunden_boilerplate':
+        this.boilerplate.push(zeile as unknown as KundenBoilerplateZeile);
+        return;
+      case 'kunden_kennzahlen':
+        this.kennzahlen.push(zeile as unknown as KundenKennzahlenZeile);
+        return;
+      case 'kunden_sprecher':
+        this.sprecher.push(zeile as unknown as KundenSprecherZeile);
+        return;
+      case 'kunden_kernbotschaften':
+        this.kernbotschaften.push(zeile as unknown as KundenKernbotschaftZeile);
+        return;
+      case 'kunden_themen':
+        this.themen.push(zeile as unknown as KundenThemaZeile);
+        return;
+      case 'kunden_grenzen':
+        this.grenzen.push(zeile as unknown as KundenGrenzeZeile);
+        return;
+      case 'kunden_medien_kontext':
+        this.medienKontext.push(zeile as unknown as KundenMedienKontextZeile);
+        return;
+      default: {
+        const unbekannt: never = tabelle;
+        throw new Error(`FakeKundenProfilRepository: unbekannte Listen-Vorschlag-Tabelle "${String(unbekannt)}"`);
+      }
+    }
   }
 
   private listeFuer(tabelle: KundenProfilListenTabelle): Array<{ id: string; status: KundenProfilElementStatus }> {
