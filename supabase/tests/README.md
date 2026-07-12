@@ -47,7 +47,8 @@ supabase/tests/
     ├── 07_editor_keine_guest_freigabe.test.sql
     ├── 08_audit_log_append_only.test.sql
     ├── 09_agentur_id_konsistenz_trigger.test.sql
-    └── 10_auth_signup_nutzer_verknuepfung.test.sql
+    ├── 10_auth_signup_nutzer_verknuepfung.test.sql
+    └── 11_llm_nutzung_rls.test.sql
 ```
 
 `helpers/000_auth_roles_and_uid.sql` bildet NUR das nach, was die RLS-

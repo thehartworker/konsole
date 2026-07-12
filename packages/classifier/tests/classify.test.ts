@@ -63,6 +63,48 @@ describe('klassifiziereNachricht', () => {
     }
   });
 
+  it('gibt bei einem schema-verletzenden Output trotzdem den verbrauchten Token-Verbrauch zurück (Issue #30 Aufgabe B: llm_nutzung braucht auch bei Fehlschlägen den echten Verbrauch)', async () => {
+    const provider = new MockLLMProvider({
+      antworten: [{ text: JSON.stringify(SCHLECHTER_OUTPUT), tokenVerbrauch: { input_tokens: 100, output_tokens: 80 } }],
+    });
+
+    const resultat = await klassifiziereNachricht(NACHRICHT_BAECKEREI, KONTEXT_BAECKEREI, provider, OPTIONEN);
+
+    expect(resultat.status).toBe('fehlgeschlagen');
+    if (resultat.status === 'fehlgeschlagen') {
+      expect(resultat.tokenVerbrauch).toEqual({ input_tokens: 100, output_tokens: 80 });
+      expect(resultat.modell).toBe('mock-model');
+    }
+  });
+
+  it('gibt bei nicht-validem JSON ebenfalls den Token-Verbrauch zurück, weil die Antwort trotzdem abgerechnet wurde', async () => {
+    const provider = new MockLLMProvider({
+      antworten: [{ text: 'das ist kein JSON', tokenVerbrauch: { input_tokens: 10, output_tokens: 5 } }],
+    });
+
+    const resultat = await klassifiziereNachricht(NACHRICHT_BAECKEREI, KONTEXT_BAECKEREI, provider, OPTIONEN);
+
+    expect(resultat.status).toBe('fehlgeschlagen');
+    if (resultat.status === 'fehlgeschlagen') {
+      expect(resultat.tokenVerbrauch).toEqual({ input_tokens: 10, output_tokens: 5 });
+    }
+  });
+
+  it('gibt bei einem reinen LLM-Aufruf-Fehler (kein Response empfangen) KEINEN Token-Verbrauch zurück', async () => {
+    const provider = {
+      strukturierteCompletion: async () => {
+        throw new Error('Netzwerk-Timeout');
+      },
+    };
+
+    const resultat = await klassifiziereNachricht(NACHRICHT_BAECKEREI, KONTEXT_BAECKEREI, provider, OPTIONEN);
+
+    expect(resultat.status).toBe('fehlgeschlagen');
+    if (resultat.status === 'fehlgeschlagen') {
+      expect(resultat.tokenVerbrauch).toBeUndefined();
+    }
+  });
+
   it('markiert nicht-valides JSON als fehlgeschlagen', async () => {
     const provider = new MockLLMProvider({
       antworten: [{ text: 'das ist kein JSON', tokenVerbrauch: { input_tokens: 10, output_tokens: 5 } }],

@@ -214,18 +214,25 @@ async function callLLMWithRetry<T>(fn: () => Promise<Response>, maxRetries = 6):
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     const res = await fn();
     const text = await res.text();
-    if (isRateLimitResponse(res.status, text) && attempt < maxRetries) {
-      const retryAfter = Number(res.headers.get('retry-after'));
-      const backoff = Number.isFinite(retryAfter) && retryAfter > 0
-        ? Math.min(retryAfter * 1000, 60000)
-        : Math.min(3000 * Math.pow(2, attempt), 60000);
-      await new Promise(r => setTimeout(r, backoff));
-      continue;
+    if (isRateLimitResponse(res.status, text)) {
+      if (attempt < maxRetries) {
+        const retryAfter = Number(res.headers.get('retry-after'));
+        const backoff = Number.isFinite(retryAfter) && retryAfter > 0
+          ? Math.min(retryAfter * 1000, 60000)
+          : Math.min(3000 * Math.pow(2, attempt), 60000);
+        await new Promise(r => setTimeout(r, backoff));
+        continue;
+      }
+      // Letzter Versuch ausgeschöpft: explizit die klare "persistent"-Meldung
+      // werfen, statt in den generischen "!res.ok"-Zweig durchzufallen.
+      throw new Error(`Rate-Limit persistent nach ${maxRetries} Retries`);
     }
     if (!res.ok) throw new Error(`LLM ${res.status}: ${text.slice(0, 300)}`);
     return JSON.parse(text) as T;
   }
-  throw new Error('Rate-Limit persistent nach 6 Retries');
+  // Strukturell unerreichbar (jeder Durchlauf gibt zurück oder wirft), aber
+  // nötig, damit der Rückgabetyp exhaustiv bewiesen werden kann.
+  throw new Error(`Rate-Limit persistent nach ${maxRetries} Retries`);
 }
 
 function isRateLimitResponse(status: number, text: string): boolean {
@@ -236,6 +243,8 @@ function isRateLimitResponse(status: number, text: string): boolean {
 ```
 
 Der 500-mit-eingebettetem-429-Fall ist echt und wurde in bridgebound gemessen.
+
+**Korrektur gegenüber Version 1.0 dieser Datei:** die vorige Fassung prüfte `isRateLimitResponse(...) && attempt < maxRetries` in einer Bedingung. Beim letzten Versuch (`attempt === maxRetries`) war `attempt < maxRetries` dann `false`, das Muster fiel in den `!res.ok`-Zweig und warf den rohen, irreführenden HTTP-Fehler statt der klaren "persistent"-Meldung — der finale `throw` nach der Schleife war dadurch unerreichbarer Code. Gefunden und gefixt in Issue #30 Aufgabe E, `packages/llm/src/retry.ts` und `packages/llm/tests/retry.test.ts` sind mit dieser Fassung in Einklang.
 
 ---
 

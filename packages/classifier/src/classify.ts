@@ -31,6 +31,18 @@ export type KlassifikationsResultat =
       status: 'fehlgeschlagen';
       fehler: string;
       rohtext?: string;
+      /**
+       * Nur gesetzt, wenn tatsächlich eine LLM-Antwort empfangen wurde
+       * (JSON-Parse- oder Zod-Validierungsfehler), nicht bei einem
+       * fehlgeschlagenen Aufruf selbst (Netzwerk-Fehler o.ä., dort wurden
+       * keine Tokens verbraucht). Teil 2 (Persistenz) braucht das, um auch
+       * für einen fehlgeschlagenen Vorgang eine korrekte llm_nutzung-Zeile
+       * zu schreiben (AGENTS.md §4: "keine Klassifikations-Antwort ohne
+       * Schema-Validierung" verbietet die Verwendung des Outputs, nicht die
+       * Erfassung des dabei verbrauchten, bereits abgerechneten Tokens).
+       */
+      tokenVerbrauch?: TokenVerbrauch;
+      modell?: string;
     };
 
 function extractJson(text: string): string {
@@ -69,6 +81,8 @@ export async function klassifiziereNachricht(
       status: 'fehlgeschlagen',
       fehler: 'LLM-Antwort ist kein valides JSON.',
       rohtext: completion.text,
+      tokenVerbrauch: completion.tokenVerbrauch,
+      modell: completion.modell,
     };
   }
 
@@ -81,6 +95,8 @@ export async function klassifiziereNachricht(
       status: 'fehlgeschlagen',
       fehler: `Zod-Validierung fehlgeschlagen: ${details}`,
       rohtext: completion.text,
+      tokenVerbrauch: completion.tokenVerbrauch,
+      modell: completion.modell,
     };
   }
 
