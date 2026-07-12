@@ -80,16 +80,16 @@ describe('callLLMWithRetry', () => {
     expect(fn).toHaveBeenCalledTimes(2);
   });
 
-  it('wirft nach Ausschöpfen aller Retries den letzten HTTP-Fehler (kanonisches Muster, AGENTS.md §7.4)', async () => {
-    // Beim letzten Versuch (attempt === maxRetries) greift "attempt < maxRetries"
-    // nicht mehr, das kanonische Muster fällt dann in den "!res.ok"-Zweig und
-    // wirft den rohen HTTP-Fehler statt der generischen "persistent"-Meldung.
-    // Diese Datei kopiert AGENTS.md §7.4 bewusst wörtlich (siehe retry.ts),
-    // der Test spiegelt deshalb das tatsächliche, nicht das ideale Verhalten.
+  it('wirft nach Ausschöpfen aller Retries die klare "persistent"-Meldung, nicht den rohen HTTP-Fehler (AGENTS.md §7.4, Issue #30 Aufgabe E)', async () => {
+    // Fix gegenüber der vorigen Fassung: beim letzten Versuch (attempt ===
+    // maxRetries) griff "attempt < maxRetries" nicht mehr, das Muster fiel
+    // dann in den "!res.ok"-Zweig und warf den rohen, irreführenden
+    // HTTP-Fehler statt der klaren "persistent"-Meldung. retry.ts wirft die
+    // Meldung jetzt explizit im letzten Rate-Limit-Versuch.
     const fn = vi.fn().mockResolvedValue(fakeResponse(429, 'immer rate limited'));
 
     const promise = callLLMWithRetry(fn, 2);
-    const erwartung = expect(promise).rejects.toThrow('LLM 429: immer rate limited');
+    const erwartung = expect(promise).rejects.toThrow('Rate-Limit persistent nach 2 Retries');
     await vi.runAllTimersAsync();
     await erwartung;
 

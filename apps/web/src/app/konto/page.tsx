@@ -29,6 +29,11 @@ export default async function KontoSeite() {
     .eq("id", user.id)
     .single();
 
+  const agenturenRaw = (nutzer as { agenturen?: unknown } | null)?.agenturen;
+  const agenturName = Array.isArray(agenturenRaw)
+    ? (agenturenRaw[0] as { name?: string } | undefined)?.name
+    : (agenturenRaw as { name?: string } | undefined)?.name;
+
   return (
     <main className="mx-auto max-w-2xl px-4 py-12">
       <h1 className="text-xl font-semibold text-slate-900">Angemeldet</h1>
@@ -37,7 +42,7 @@ export default async function KontoSeite() {
         <p className="mt-4 text-sm text-slate-700">
           Eingeloggt als <strong>{nutzer.name}</strong> (
           {ROLLEN_LABEL[nutzer.rolle] ?? nutzer.rolle}) bei{" "}
-          <strong>{nutzer.agenturen?.name ?? "unbekannte Agentur"}</strong>.
+          <strong>{agenturName ?? "unbekannte Agentur"}</strong>.
         </p>
       ) : (
         <p className="mt-4 text-sm text-red-700">
