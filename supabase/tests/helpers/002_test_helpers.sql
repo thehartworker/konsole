@@ -34,3 +34,13 @@ BEGIN
   RESET ROLE;
 END;
 $$;
+
+-- 001_grants.sql laeuft im CI-Setup VOR dieser Datei und deckt daher nur das
+-- zu diesem Zeitpunkt bereits existierende Schema "public" ab. Das Schema
+-- "tests" und seine Funktionen (siehe oben) existieren erst ab hier, daher
+-- muessen die Grants dafuer an dieser Stelle vergeben werden: sobald ein
+-- Test per tests.authenticate_as() in die Rolle "authenticated" wechselt,
+-- braucht diese Rolle USAGE auf das Schema und EXECUTE auf die Funktionen,
+-- sonst scheitert jeder Testaufruf mit "permission denied for schema tests".
+GRANT USAGE ON SCHEMA tests TO anon, authenticated, service_role;
+GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA tests TO anon, authenticated, service_role;

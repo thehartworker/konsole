@@ -16,15 +16,8 @@
 -- auth.users (Stub, siehe 000_auth_roles_and_uid.sql)
 -- ============================================================
 
-INSERT INTO auth.users (id) VALUES
-  ('a0000000-0000-0000-0000-000000000101'), -- chef_a
-  ('a0000000-0000-0000-0000-000000000102'), -- manager_a
-  ('a0000000-0000-0000-0000-000000000103'), -- editor_a1 (zuständig für sensitiven Vorgang)
-  ('a0000000-0000-0000-0000-000000000104'), -- editor_a2 (gleicher Kunde, NICHT zuständig)
-  ('a0000000-0000-0000-0000-000000000105'), -- reader_a
-  ('a0000000-0000-0000-0000-000000000106'), -- guest_a
-  ('a0000000-0000-0000-0000-000000000201'), -- chef_b (andere Agentur)
-  ('a0000000-0000-0000-0000-000000000202'); -- editor_b (andere Agentur)
+-- auth.users wird weiter unten (nach agenturen/kunden) angelegt,
+-- damit der handle_new_user()-Trigger die agentur_id-FK aufloesen kann.
 
 -- ============================================================
 -- agenturen
@@ -47,15 +40,15 @@ INSERT INTO kunden (id, agentur_id, name, slug) VALUES
 -- nutzer
 -- ============================================================
 
-INSERT INTO nutzer (id, agentur_id, name, rolle) VALUES
-  ('a0000000-0000-0000-0000-000000000101', 'a0000000-0000-0000-0000-000000000001', 'Chef A (Test)', 'chef'),
-  ('a0000000-0000-0000-0000-000000000102', 'a0000000-0000-0000-0000-000000000001', 'Manager A (Test)', 'manager'),
-  ('a0000000-0000-0000-0000-000000000103', 'a0000000-0000-0000-0000-000000000001', 'Editor A1 (Test)', 'editor'),
-  ('a0000000-0000-0000-0000-000000000104', 'a0000000-0000-0000-0000-000000000001', 'Editor A2 (Test)', 'editor'),
-  ('a0000000-0000-0000-0000-000000000105', 'a0000000-0000-0000-0000-000000000001', 'Reader A (Test)', 'reader'),
-  ('a0000000-0000-0000-0000-000000000106', 'a0000000-0000-0000-0000-000000000001', 'Guest A (Test)', 'guest'),
-  ('a0000000-0000-0000-0000-000000000201', 'a0000000-0000-0000-0000-000000000002', 'Chef B (Test)', 'chef'),
-  ('a0000000-0000-0000-0000-000000000202', 'a0000000-0000-0000-0000-000000000002', 'Editor B (Test)', 'editor');
+INSERT INTO auth.users (id, email, raw_user_meta_data) VALUES
+  ('a0000000-0000-0000-0000-000000000101', 'chef.a@test.example',    jsonb_build_object('agentur_id','a0000000-0000-0000-0000-000000000001','rolle','chef','name','Chef A (Test)')),
+  ('a0000000-0000-0000-0000-000000000102', 'manager.a@test.example', jsonb_build_object('agentur_id','a0000000-0000-0000-0000-000000000001','rolle','manager','name','Manager A (Test)')),
+  ('a0000000-0000-0000-0000-000000000103', 'editor.a1@test.example', jsonb_build_object('agentur_id','a0000000-0000-0000-0000-000000000001','rolle','editor','name','Editor A1 (Test)')),
+  ('a0000000-0000-0000-0000-000000000104', 'editor.a2@test.example', jsonb_build_object('agentur_id','a0000000-0000-0000-0000-000000000001','rolle','editor','name','Editor A2 (Test)')),
+  ('a0000000-0000-0000-0000-000000000105', 'reader.a@test.example',  jsonb_build_object('agentur_id','a0000000-0000-0000-0000-000000000001','rolle','reader','name','Reader A (Test)')),
+  ('a0000000-0000-0000-0000-000000000106', 'guest.a@test.example',   jsonb_build_object('agentur_id','a0000000-0000-0000-0000-000000000001','rolle','guest','name','Guest A (Test)','guest_ablauf_at','2099-12-31T00:00:00Z')),
+  ('a0000000-0000-0000-0000-000000000201', 'chef.b@test.example',    jsonb_build_object('agentur_id','a0000000-0000-0000-0000-000000000002','rolle','chef','name','Chef B (Test)')),
+  ('a0000000-0000-0000-0000-000000000202', 'editor.b@test.example',  jsonb_build_object('agentur_id','a0000000-0000-0000-0000-000000000002','rolle','editor','name','Editor B (Test)'));
 
 -- ============================================================
 -- nutzer_kunden_zuweisungen
@@ -75,11 +68,16 @@ INSERT INTO nutzer_kunden_zuweisungen (nutzer_id, kunde_id) VALUES
 -- agentur_id wird vom Konsistenz-Trigger aus kunde_id übernommen.
 -- ============================================================
 
-INSERT INTO vorgaenge (id, kunde_id, kanal, absender_identifikator, eingang_at, inhalt_text, sensitivity, zustaendige_nutzer_id) VALUES
-  ('a0000000-0000-0000-0000-000000001001', 'a0000000-0000-0000-0000-000000000011', 'email', 'kunde@kunde-a1.example', now() - interval '2 hours', 'Normaler Test-Vorgang bei Kunde A1.', 'normal', NULL),
-  ('a0000000-0000-0000-0000-000000001002', 'a0000000-0000-0000-0000-000000000011', 'email', 'kunde@kunde-a1.example', now() - interval '1 hour',  'Vertraulicher Test-Vorgang bei Kunde A1, nur Editor A1 zuständig.', 'vertraulich', 'a0000000-0000-0000-0000-000000000103'),
-  ('a0000000-0000-0000-0000-000000001003', 'a0000000-0000-0000-0000-000000000012', 'email', 'kunde@kunde-a2.example', now() - interval '3 hours', 'Normaler Test-Vorgang bei Kunde A2 (Editor A1/A2/Reader A NICHT zugewiesen).', 'normal', NULL),
-  ('a0000000-0000-0000-0000-000000001004', 'a0000000-0000-0000-0000-000000000021', 'email', 'kunde@kunde-b1.example', now() - interval '4 hours', 'Normaler Test-Vorgang bei Kunde B1, andere Agentur.', 'normal', NULL);
+-- betreff ist bei allen bis auf 1001 bewusst NULL (nicht jeder Vorgang hat
+-- im Fachmodell einen Betreff). Vorgang 1001 bekommt einen nicht-leeren Wert,
+-- weil Test 05 (reader_keine_schreibrechte) genau dieses Feld per UPDATE zu
+-- manipulieren versucht und beweisen muss, dass der ORIGINALWERT erhalten
+-- bleibt, nicht nur, dass ein zufälliges NULL unveraendert ist.
+INSERT INTO vorgaenge (id, kunde_id, kanal, absender_identifikator, eingang_at, betreff, inhalt_text, sensitivity, zustaendige_nutzer_id) VALUES
+  ('a0000000-0000-0000-0000-000000001001', 'a0000000-0000-0000-0000-000000000011', 'email', 'kunde@kunde-a1.example', now() - interval '2 hours', 'Rückfrage zur letzten Rechnung', 'Normaler Test-Vorgang bei Kunde A1.', 'normal', NULL),
+  ('a0000000-0000-0000-0000-000000001002', 'a0000000-0000-0000-0000-000000000011', 'email', 'kunde@kunde-a1.example', now() - interval '1 hour',  NULL, 'Vertraulicher Test-Vorgang bei Kunde A1, nur Editor A1 zuständig.', 'vertraulich', 'a0000000-0000-0000-0000-000000000103'),
+  ('a0000000-0000-0000-0000-000000001003', 'a0000000-0000-0000-0000-000000000012', 'email', 'kunde@kunde-a2.example', now() - interval '3 hours', NULL, 'Normaler Test-Vorgang bei Kunde A2 (Editor A1/A2/Reader A NICHT zugewiesen).', 'normal', NULL),
+  ('a0000000-0000-0000-0000-000000001004', 'a0000000-0000-0000-0000-000000000021', 'email', 'kunde@kunde-b1.example', now() - interval '4 hours', NULL, 'Normaler Test-Vorgang bei Kunde B1, andere Agentur.', 'normal', NULL);
 
 -- ============================================================
 -- anliegen

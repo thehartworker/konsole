@@ -11,22 +11,33 @@ SELECT plan(4);
 
 SELECT tests.authenticate_as('a0000000-0000-0000-0000-000000000101'); -- chef_a
 
+-- Postgres verbietet einen data-modifying CTE als verschachteltes Argument
+-- ("WITH clause containing a data-modifying statement must be at the top
+-- level"), daher laufen UPDATE- und DELETE-Versuch hier je als eigene,
+-- oberste Anweisung, deren betroffene Zeilenzahl in einer TEMP-Tabelle
+-- landet.
+WITH versuch AS (
+  UPDATE audit_log SET aktion_payload = '{"manipuliert": true}'::jsonb
+  WHERE id = 'a0000000-0000-0000-0000-000000005001'
+  RETURNING 1
+)
+SELECT count(*) AS c INTO TEMP t_test08_update_versuch FROM versuch;
+
 SELECT is(
-  (WITH versuch AS (
-    UPDATE audit_log SET aktion_payload = '{"manipuliert": true}'::jsonb
-    WHERE id = 'a0000000-0000-0000-0000-000000005001'
-    RETURNING 1
-  ) SELECT count(*) FROM versuch)::int,
+  (SELECT c FROM t_test08_update_versuch)::int,
   0,
   'ein UPDATE-Versuch von chef_a auf audit_log betrifft 0 Zeilen (keine UPDATE-Policy)'
 );
 
+WITH versuch AS (
+  DELETE FROM audit_log
+  WHERE id = 'a0000000-0000-0000-0000-000000005001'
+  RETURNING 1
+)
+SELECT count(*) AS c INTO TEMP t_test08_delete_versuch FROM versuch;
+
 SELECT is(
-  (WITH versuch AS (
-    DELETE FROM audit_log
-    WHERE id = 'a0000000-0000-0000-0000-000000005001'
-    RETURNING 1
-  ) SELECT count(*) FROM versuch)::int,
+  (SELECT c FROM t_test08_delete_versuch)::int,
   0,
   'ein DELETE-Versuch von chef_a auf audit_log betrifft 0 Zeilen (keine DELETE-Policy)'
 );
