@@ -30,8 +30,6 @@ export function istWahrscheinlichDeutsch(text: string): boolean {
   const bereinigt = text.trim();
   if (bereinigt.length === 0) return true;
 
-  if (/[äöüß]/i.test(bereinigt)) return true;
-
   const woerter = bereinigt.toLowerCase().match(/[a-zäöüß]+/g) ?? [];
   if (woerter.length === 0) return true;
 
@@ -42,6 +40,15 @@ export function istWahrscheinlichDeutsch(text: string): boolean {
     if ((ENGLISCHE_STOPWOERTER as readonly string[]).includes(wort)) englischeTreffer += 1;
   }
 
-  if (deutscheTreffer === 0 && englischeTreffer === 0) return true; // kein Signal, kein Verstoß
+  // Umlaute/ß sind ein deutsches Signal, aber kein Freibrief: ein einzelner
+  // deutscher Eigenname (z.B. "Süddeutsche Zeitung") in einem sonst klar
+  // englischen Satz darf den Text nicht als Deutsch durchgehen lassen. Der
+  // Umlaut zählt daher als zusätzliches deutsches Signal, überstimmt aber
+  // eine klare englische Stopwort-Mehrheit nicht.
+  const hatUmlaut = /[äöüß]/i.test(bereinigt);
+  if (hatUmlaut && englischeTreffer === 0) return true;
+
+  if (deutscheTreffer === 0 && englischeTreffer === 0) return true; // kein Stopwort-Signal
+  if (hatUmlaut) deutscheTreffer += 1; // Umlaut als zusätzliches, nicht dominierendes Signal
   return deutscheTreffer >= englischeTreffer;
 }
