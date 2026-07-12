@@ -6,7 +6,7 @@ function fakeResponse(status: number, body: unknown, headers: Record<string, str
     status,
     ok: status >= 200 && status < 300,
     headers: new Headers(headers),
-    text: async () => JSON.stringify(body),
+    text: async () => typeof body === "string" ? body : JSON.stringify(body),
   } as unknown as Response;
 }
 
