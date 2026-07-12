@@ -47,3 +47,25 @@ enable_confirmations = true
 
 # Keine Social-Logins in v1 (AGENTS.md/Issue #20 PR 2). Provider-Bloecke
 # bewusst nicht eingetragen, Supabase-Default ist "disabled" ohne Eintrag.
+
+[storage]
+enabled = true
+
+# Bucket für hochgeladene Kundendokumente (Ebene 3 Kundenprofil-KI-
+# Befüllung, Issue #37), siehe docs/decisions/2026-07-12_kundenprofil-ki-befuellung.md,
+# Abschnitt "Datei-Storage". Privat (kein öffentlicher Lesezugriff), Zugriff
+# ausschließlich über die Service-Role (siehe
+# supabase/storage/kunden_quelldokumente_bucket.sql für die storage.objects-
+# RLS-Policies, die dieser CLI-Block NICHT abdeckt). Nicht gegen eine echte
+# Supabase-CLI validiert, siehe Kopf-Kommentar dieser Datei -- Feldnamen nach
+# bestem Wissen aus dem Standard-Storage-Config-Schema, vor dem ersten
+# `supabase start` gegengeprüft werden.
+[storage.buckets.kunden_quelldokumente]
+public = false
+file_size_limit = "25MiB"
+allowed_mime_types = [
+  "application/pdf",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "text/plain",
+  "text/html",
+]
