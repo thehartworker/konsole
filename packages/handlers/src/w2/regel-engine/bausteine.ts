@@ -145,6 +145,43 @@ const deadline_schlusssatz_bei_frist: BausteinFn = (draft, kontext) => {
   };
 };
 
+/**
+ * Generischer Baustein für eine deterministisch erzwungene kunden_grenzen-
+ * Zeile vom Typ 'verbotene_aussage' (Issue #35, Kundenprofil-Fundament):
+ * schlägt fehl, sobald `parameter.phrase` case-insensitiv irgendwo im
+ * Draft-Text vorkommt. Siehe docs/decisions/2026-07-12_kundenprofil.md,
+ * Abschnitt "Deterministisch erzwungene Grenzen" -- die konkrete Phrase
+ * kommt nicht aus dieser Registry, sondern wird von
+ * KundenProfilRepository.deterministischeGrenzenAlsPruefregeln zur
+ * Laufzeit pro Kunde als Parameter injiziert.
+ */
+const kundengrenze_verbotene_aussage: BausteinFn = (draft, _kontext, parameter) => {
+  const phrase = typeof parameter.phrase === 'string' ? parameter.phrase.trim() : '';
+  if (!phrase) return { bestanden: true }; // defensiv, durch die Aufrufer-Seite ausgeschlossen
+  if (!alleTextfelder(draft).toLowerCase().includes(phrase.toLowerCase())) return { bestanden: true };
+  return {
+    bestanden: false,
+    begruendung: `Verbotene Aussage laut Kundenprofil-Grenze gefunden: "${phrase}".`,
+  };
+};
+
+/**
+ * Generischer Baustein für eine deterministisch erzwungene kunden_grenzen-
+ * Zeile vom Typ 'pflichtbaustein': schlägt fehl, wenn `parameter.text` NICHT
+ * im Draft-Text vorkommt (umgekehrte Prüfrichtung zu
+ * kundengrenze_verbotene_aussage). Siehe Decision, Abschnitt
+ * "Deterministisch erzwungene Grenzen".
+ */
+const kundengrenze_pflichtbaustein: BausteinFn = (draft, _kontext, parameter) => {
+  const text = typeof parameter.text === 'string' ? parameter.text.trim() : '';
+  if (!text) return { bestanden: true }; // defensiv, durch die Aufrufer-Seite ausgeschlossen
+  if (alleTextfelder(draft).toLowerCase().includes(text.toLowerCase())) return { bestanden: true };
+  return {
+    bestanden: false,
+    begruendung: `Pflichtbaustein laut Kundenprofil-Grenze fehlt im Draft: "${text}".`,
+  };
+};
+
 export const BAUSTEIN_REGISTRY: Record<string, BausteinFn> = {
   was_wir_tun_zielsprache,
   reactive_statement_nur_bei_sprachregelung,
@@ -154,6 +191,8 @@ export const BAUSTEIN_REGISTRY: Record<string, BausteinFn> = {
   action_items_nur_in_open_questions,
   background_mit_quellenangabe,
   deadline_schlusssatz_bei_frist,
+  kundengrenze_verbotene_aussage,
+  kundengrenze_pflichtbaustein,
 };
 
 export const BAUSTEIN_NAMEN = Object.keys(BAUSTEIN_REGISTRY);

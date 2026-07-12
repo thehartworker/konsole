@@ -48,7 +48,10 @@ supabase/tests/
     ├── 08_audit_log_append_only.test.sql
     ├── 09_agentur_id_konsistenz_trigger.test.sql
     ├── 10_auth_signup_nutzer_verknuepfung.test.sql
-    └── 11_llm_nutzung_rls.test.sql
+    ├── 11_llm_nutzung_rls.test.sql
+    ├── 12_pruefregeln_rls.test.sql
+    ├── 13_kundenprofil_rls.test.sql
+    └── 14_kundenprofil_status_uebergang.test.sql
 ```
 
 `helpers/000_auth_roles_and_uid.sql` bildet NUR das nach, was die RLS-

@@ -28,6 +28,28 @@ export {
 } from './pruefregeln.js';
 
 export {
+  SupabaseKundenProfilRepository,
+  KundenProfilW2KontextQuellenProvider,
+  type KundenProfilRepository,
+  type KundenProfil,
+  type KundenProfilKern,
+  type KundenProfilElementStatus,
+  type KundenProfilFeldStatus,
+  type KundenProfilFeldStatusEintrag,
+  type KundenProfilListenTabelle,
+  type KundenBoilerplateZeile,
+  type KundenKennzahlenZeile,
+  type KundenSprecherZeile,
+  type KundenKernbotschaftZeile,
+  type KundenThemaZeile,
+  type KundenGrenzeZeile,
+  type KundenGrenzenTyp,
+  type KundenFreigabekettenZeile,
+  type KundenPraezedenzfallZeile,
+  type KundenMedienKontextZeile,
+} from './kundenprofil.js';
+
+export {
   fuehreW2AusUndProtokolliere,
   type FuehreW2AusEingabe,
   type FuehreW2AusResultat,
