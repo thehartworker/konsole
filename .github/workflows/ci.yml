@@ -27,7 +27,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version-file: '.tool-versions'
-          cache: 'pnpm'
       - name: Dependencies installieren
         run: pnpm install
       - name: Type-check (alle Pakete)
@@ -139,7 +138,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version-file: '.tool-versions'
-          cache: 'pnpm'
       - name: Dependencies installieren
         run: pnpm install
       - name: Tests (alle Pakete, vitest run)
