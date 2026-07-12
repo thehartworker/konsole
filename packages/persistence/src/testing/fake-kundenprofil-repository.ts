@@ -6,7 +6,7 @@
 // Profile (nur Pflicht-Minimum) und Status-Übergänge direkt zu inspizieren.
 
 import { W2_HANDLER_SLUG } from '@konsole/handlers';
-import type { PraezedenzEintrag, SprachregelungsEintrag, W2KontextQuellenProvider, W2KundeKontextInput } from '@konsole/handlers';
+import type { PraezedenzEintrag, SprachregelungsEintrag, W2KontextQuellenProvider, W2KundeKontextInput, Pruefregel } from '@konsole/handlers';
 import {
   grenzeAlsPruefregel,
   type KundenBoilerplateZeile,
@@ -23,7 +23,6 @@ import {
   type KundenProfilRepository,
   type KundenSprecherZeile,
   type KundenThemaZeile,
-  type Pruefregel,
 } from '../kundenprofil.js';
 
 function defaultKern(kundeId: string): KundenProfilKern {
