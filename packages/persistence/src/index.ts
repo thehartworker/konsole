@@ -20,3 +20,15 @@ export {
   type KlassifiziereUndPersistiereEingabe,
 } from './orchestrierung.js';
 export { SupabaseKlassifikationsRepository } from './supabase-repository.js';
+
+export {
+  SupabasePruefregelnRepository,
+  type PruefregelnRepository,
+  type PruefregelZeile,
+} from './pruefregeln.js';
+
+export {
+  fuehreW2AusUndProtokolliere,
+  type FuehreW2AusEingabe,
+  type FuehreW2AusResultat,
+} from './w2-orchestrierung.js';
