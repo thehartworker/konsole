@@ -1,5 +1,5 @@
 {
-  "name": "@konsole/persistence",
+  "name": "@konsole/handlers",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -8,9 +8,9 @@
       "types": "./src/index.ts",
       "default": "./src/index.ts"
     },
-    "./testing": {
-      "types": "./src/testing/index.ts",
-      "default": "./src/testing/index.ts"
+    "./w2": {
+      "types": "./src/w2/index.ts",
+      "default": "./src/w2/index.ts"
     }
   },
   "scripts": {
@@ -18,10 +18,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@konsole/classifier": "workspace:*",
-    "@konsole/handlers": "workspace:*",
     "@konsole/llm": "workspace:*",
-    "@supabase/supabase-js": "^2.47.0"
+    "zod": "^3.24.1"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
