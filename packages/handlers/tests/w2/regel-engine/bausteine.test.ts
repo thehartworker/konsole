@@ -6,7 +6,7 @@ const KONTEXT_MIT_SPRACHREGELUNG: BausteinKontext = { sprachregelungVorhanden: t
 const KONTEXT_OHNE_SPRACHREGELUNG: BausteinKontext = { sprachregelungVorhanden: false, fristAt: null };
 
 describe('BAUSTEIN_REGISTRY', () => {
-  it('kennt genau die 8 dokumentierten Code-Bausteine', () => {
+  it('kennt genau die 8 dokumentierten Code-Bausteine plus die 2 generischen Kundenprofil-Grenzen-Bausteine (Issue #35)', () => {
     expect(BAUSTEIN_NAMEN.sort()).toEqual(
       [
         'action_items_nur_in_open_questions',
@@ -15,6 +15,8 @@ describe('BAUSTEIN_REGISTRY', () => {
         'keine_agentur_vermittlungs_bezug',
         'keine_prozess_erklaerungen',
         'keine_tier_nennung',
+        'kundengrenze_pflichtbaustein',
+        'kundengrenze_verbotene_aussage',
         'reactive_statement_nur_bei_sprachregelung',
         'was_wir_tun_zielsprache',
       ].sort(),
@@ -97,5 +99,33 @@ describe('BAUSTEIN_REGISTRY', () => {
     const kontext: BausteinKontext = { sprachregelungVorhanden: true, fristAt: '2026-07-15T15:00:00.000Z' };
     expect(BAUSTEIN_REGISTRY.deadline_schlusssatz_bei_frist(SCHLECHTER_DRAFT, kontext, {}).bestanden).toBe(false);
     expect(BAUSTEIN_REGISTRY.deadline_schlusssatz_bei_frist(GUTER_DRAFT, kontext, {}).bestanden).toBe(true);
+  });
+
+  // Issue #35 (Kundenprofil-Fundament): generische Bausteine für
+  // deterministisch erzwungene kunden_grenzen-Zeilen. Die konkrete Phrase
+  // kommt zur Laufzeit aus KundenProfilRepository.deterministischeGrenzenAlsPruefregeln,
+  // hier direkt als Parameter gesetzt.
+  it('kundengrenze_verbotene_aussage: schlägt fehl, sobald die Phrase (case-insensitiv) im Draft vorkommt', () => {
+    const bestanden = BAUSTEIN_REGISTRY.kundengrenze_verbotene_aussage(GUTER_DRAFT, KONTEXT_MIT_SPRACHREGELUNG, {
+      phrase: 'phrase kommt hier nicht vor',
+    });
+    expect(bestanden.bestanden).toBe(true);
+
+    const verstoss = BAUSTEIN_REGISTRY.kundengrenze_verbotene_aussage(GUTER_DRAFT, KONTEXT_MIT_SPRACHREGELUNG, {
+      phrase: 'PRODUKTRÜCKRUF', // GUTER_DRAFT.background_information[0].topic_field ist 'Produktrückruf'
+    });
+    expect(verstoss.bestanden).toBe(false);
+  });
+
+  it('kundengrenze_pflichtbaustein: schlägt fehl, solange der Pflichttext NICHT im Draft vorkommt', () => {
+    const fehlend = BAUSTEIN_REGISTRY.kundengrenze_pflichtbaustein(GUTER_DRAFT, KONTEXT_MIT_SPRACHREGELUNG, {
+      text: 'Text, der garantiert nicht im Draft vorkommt',
+    });
+    expect(fehlend.bestanden).toBe(false);
+
+    const vorhanden = BAUSTEIN_REGISTRY.kundengrenze_pflichtbaustein(GUTER_DRAFT, KONTEXT_MIT_SPRACHREGELUNG, {
+      text: 'Produktrückruf',
+    });
+    expect(vorhanden.bestanden).toBe(true);
   });
 });
