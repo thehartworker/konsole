@@ -9,6 +9,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { W2_HANDLER_SLUG } from '@konsole/handlers';
 import type { Pruefregel, PraezedenzEintrag, SprachregelungsEintrag, W2KontextQuellenProvider, W2KundeKontextInput } from '@konsole/handlers';
+import type { ProfilExtraktionsQuelle } from '@konsole/profil-extraktion';
+import { filterDubletten } from './aehnlichkeit.js';
 
 export type KundenProfilElementStatus = 'freigegeben' | 'vorlaeufig' | 'abgeleitet';
 
@@ -47,6 +49,8 @@ export interface KundenBoilerplateZeile {
   text: string;
   status: KundenProfilElementStatus;
   stand: string | null;
+  /** Technische Herkunft eines abgeleiteten Vorschlags, siehe kundenprofil-ki-befuellung-Decision. Optional: bestehende, vor PR 2 geschriebene Zeilen kennen die Spalte nicht. */
+  herkunft?: string | null;
 }
 
 export interface KundenKennzahlenZeile {
@@ -57,6 +61,7 @@ export interface KundenKennzahlenZeile {
   stichtag: string;
   quelle: string;
   status: KundenProfilElementStatus;
+  herkunft?: string | null;
 }
 
 export interface KundenSprecherZeile {
@@ -67,6 +72,7 @@ export interface KundenSprecherZeile {
   exakte_schreibweise: string | null;
   zitat_freigabe: boolean;
   status: KundenProfilElementStatus;
+  herkunft?: string | null;
 }
 
 export interface KundenKernbotschaftZeile {
@@ -75,6 +81,7 @@ export interface KundenKernbotschaftZeile {
   text: string;
   reihenfolge: number;
   status: KundenProfilElementStatus;
+  herkunft?: string | null;
 }
 
 export interface KundenThemaZeile {
@@ -85,6 +92,7 @@ export interface KundenThemaZeile {
   reaktives_statement: string | null;
   positionierung_vorhanden: boolean;
   status: KundenProfilElementStatus;
+  herkunft?: string | null;
 }
 
 export type KundenGrenzenTyp =
@@ -102,6 +110,7 @@ export interface KundenGrenzeZeile {
   textart_geltungsbereich: string | null;
   ist_deterministisch_erzwungen: boolean;
   status: KundenProfilElementStatus;
+  herkunft?: string | null;
 }
 
 export interface KundenFreigabekettenZeile {
@@ -111,6 +120,7 @@ export interface KundenFreigabekettenZeile {
   reihenfolge: number;
   bedingung: string | null;
   status: KundenProfilElementStatus;
+  herkunft?: string | null;
 }
 
 export interface KundenPraezedenzfallZeile {
@@ -121,6 +131,7 @@ export interface KundenPraezedenzfallZeile {
   volltext: string;
   freigegeben_am: string | null;
   status: KundenProfilElementStatus;
+  herkunft?: string | null;
 }
 
 export interface KundenMedienKontextZeile {
@@ -131,6 +142,7 @@ export interface KundenMedienKontextZeile {
   beziehungsnotiz: string | null;
   prioritaet: 'hoch' | 'mittel' | 'niedrig' | null;
   status: KundenProfilElementStatus;
+  herkunft?: string | null;
 }
 
 export interface KundenProfil {
@@ -156,6 +168,55 @@ export type KundenProfilListenTabelle =
   | 'kunden_freigabekette'
   | 'kunden_praezedenzfaelle'
   | 'kunden_medien_kontext';
+
+// ============================================================
+// KI-Befüllung (Issue #37, Ebene 3, PR 2): Insert-Vorschlagswege für
+// abgeleitete Elemente, siehe docs/decisions/2026-07-12_kundenprofil-ki-befuellung.md,
+// Abschnitt "Persistenz". Nur die sieben Listen-Tabellen, die das
+// Extraktions-Schema (packages/profil-extraktion/src/schema.ts) tatsächlich
+// befüllt -- kunden_freigabekette/kunden_praezedenzfaelle bekommen die
+// herkunft-Spalte aus Schema-Konsistenz-Gründen (Migration), aber keinen
+// KI-Schreibpfad, weil die Extraktion diese beiden Kategorien nicht abdeckt.
+// ============================================================
+
+export type KundenProfilListenVorschlagTabelle = Exclude<
+  KundenProfilListenTabelle,
+  'kunden_freigabekette' | 'kunden_praezedenzfaelle'
+>;
+
+/**
+ * Skalar-Felder der Kern-Tabelle, die die KI-Extraktion vorschlagen kann
+ * (Fakten/Stimme/Strategie-Schicht, siehe Extraktions-Schema).
+ * corporate_design_ref/stil_parameter/aktive_handler sind bewusst NICHT
+ * Teil davon (siehe Decision, "corporate_design_ref ist bewusst NICHT Teil
+ * des Extraktions-Schemas").
+ */
+export interface KundenProfilKernVorschlagsFelder {
+  rechtsform?: string | null;
+  sitz?: string | null;
+  geschaeftsbeschreibung?: string | null;
+  grundton?: string | null;
+  anrede_konvention?: 'du' | 'sie' | null;
+  gendering_konvention?: string | null;
+  zielsprache_absender_texte?: string | null;
+  positionierung?: string | null;
+  usp?: string | null;
+}
+
+export interface KundenProfilListenVorschlagEingabe {
+  tabelle: KundenProfilListenVorschlagTabelle;
+  kundeId: string;
+  /** Insert-Payload je Zeile, OHNE kunde_id/status/herkunft (werden hier ergänzt). */
+  zeilen: Array<Record<string, unknown>>;
+  /** Baut aus einer Zeile (neuer Vorschlag ODER bereits bestehende DB-Zeile) den Vergleichstext für die Dubletten-Vorfilterung. */
+  vergleichsSchluessel: (zeile: Record<string, unknown>) => string;
+  quelle: ProfilExtraktionsQuelle;
+}
+
+export interface KundenProfilVorschlagResultat {
+  eingefuegt: number;
+  dublettenUebersprungen: number;
+}
 
 /**
  * Übersetzt eine deterministisch erzwungene kunden_grenzen-Zeile in eine
@@ -187,6 +248,32 @@ export interface KundenProfilRepository {
   w2KontextLaden(kundeId: string): Promise<W2KundeKontextInput>;
   w2KontextQuellenProviderErstellen(kundeId: string): W2KontextQuellenProvider;
   deterministischeGrenzenAlsPruefregeln(kundeId: string, handlerSlug: string): Promise<Pruefregel[]>;
+
+  /**
+   * Schreibt KI-vorgeschlagene Kern-Felder als 'abgeleitet', siehe Decision,
+   * Abschnitt "Persistenz": ein Feld mit bestehendem feld_status.status ===
+   * 'freigegeben' wird komplett übersprungen (Nicht-Überschreiben-Regel),
+   * 'vorlaeufig'/'abgeleitet' bzw. noch unbesetzt wird überschrieben. Felder
+   * mit Wert `null`/`undefined` im Vorschlag werden NICHT geschrieben (ein
+   * "nicht belegbar"-Vorschlag darf kein bestehendes Feld leeren). Legt bei
+   * Bedarf die kunden_profil-Zeile selbst an (gestuft befüllbar, Ebene 3
+   * kann die erste Berührung mit einem Kunden sein).
+   */
+  kernFelderVorschlagen(
+    kundeId: string,
+    felder: KundenProfilKernVorschlagsFelder,
+    quelle: ProfilExtraktionsQuelle,
+    stand: string,
+  ): Promise<void>;
+
+  /**
+   * Schreibt KI-vorgeschlagene Listen-Zeilen als neue 'abgeleitet'-Zeilen
+   * (Listen-Tabellen kennen keine Nicht-Überschreiben-Regel, siehe Decision
+   * -- mehrere Einträge nebeneinander sind dort normal), mit einfacher
+   * Dubletten-Vorfilterung gegen bereits bestehende Zeilen UND gegen andere
+   * Kandidaten desselben Aufrufs (aehnlichkeit.ts).
+   */
+  listenElementeVorschlagen(eingabe: KundenProfilListenVorschlagEingabe): Promise<KundenProfilVorschlagResultat>;
 }
 
 function pruefeFehler(fehler: { message: string } | null, kontext: string): void {
@@ -363,6 +450,72 @@ export class SupabaseKundenProfilRepository implements KundenProfilRepository {
     return (data ?? []).map((zeile) =>
       grenzeAlsPruefregel(zeile as { id: string; typ: KundenGrenzenTyp; inhalt: string }, handlerSlug),
     );
+  }
+
+  async kernFelderVorschlagen(
+    kundeId: string,
+    felder: KundenProfilKernVorschlagsFelder,
+    quelle: ProfilExtraktionsQuelle,
+    stand: string,
+  ): Promise<void> {
+    const { data: bestehend, error } = await this.client
+      .from('kunden_profil')
+      .select('id, feld_status')
+      .eq('kunde_id', kundeId)
+      .is('deleted_at', null)
+      .maybeSingle();
+    pruefeFehler(error, 'kernFelderVorschlagen(laden)');
+
+    const bestehenderFeldStatus = (bestehend?.feld_status ?? {}) as KundenProfilFeldStatus;
+    const zuAktualisieren: Record<string, unknown> = {};
+    const neuerFeldStatus: KundenProfilFeldStatus = { ...bestehenderFeldStatus };
+
+    for (const [feldname, wert] of Object.entries(felder)) {
+      // null/undefined heißt "aus dem Text nicht belegbar" (Konservativ-
+      // Prinzip) -- das darf ein bestehendes Feld nicht leeren, deshalb wird
+      // ein solches Feld schlicht nicht angefasst.
+      if (wert === null || wert === undefined) continue;
+      if (bestehenderFeldStatus[feldname]?.status === 'freigegeben') continue; // Nicht-Überschreiben-Regel
+
+      zuAktualisieren[feldname] = wert;
+      neuerFeldStatus[feldname] = { status: 'abgeleitet', quelle, stand };
+    }
+
+    if (Object.keys(zuAktualisieren).length === 0) return;
+
+    if (!bestehend) {
+      const { error: insertFehler } = await this.client
+        .from('kunden_profil')
+        .insert({ kunde_id: kundeId, ...zuAktualisieren, feld_status: neuerFeldStatus });
+      pruefeFehler(insertFehler, 'kernFelderVorschlagen(insert)');
+      return;
+    }
+
+    const { error: updateFehler } = await this.client
+      .from('kunden_profil')
+      .update({ ...zuAktualisieren, feld_status: neuerFeldStatus })
+      .eq('id', bestehend.id);
+    pruefeFehler(updateFehler, 'kernFelderVorschlagen(update)');
+  }
+
+  async listenElementeVorschlagen(eingabe: KundenProfilListenVorschlagEingabe): Promise<KundenProfilVorschlagResultat> {
+    const { tabelle, kundeId, zeilen, vergleichsSchluessel, quelle } = eingabe;
+    if (zeilen.length === 0) return { eingefuegt: 0, dublettenUebersprungen: 0 };
+
+    const { data, error } = await this.client.from(tabelle).select('*').eq('kunde_id', kundeId).is('deleted_at', null);
+    pruefeFehler(error, `listenElementeVorschlagen(${tabelle}, laden)`);
+
+    const bestehendeSchluessel = (data ?? []).map((zeile) => vergleichsSchluessel(zeile as Record<string, unknown>));
+    const { einzufuegen, dublettenUebersprungen } = filterDubletten(zeilen, bestehendeSchluessel, vergleichsSchluessel);
+
+    if (einzufuegen.length === 0) return { eingefuegt: 0, dublettenUebersprungen };
+
+    const { error: insertFehler } = await this.client
+      .from(tabelle)
+      .insert(einzufuegen.map((zeile) => ({ ...zeile, kunde_id: kundeId, status: 'abgeleitet', herkunft: quelle })));
+    pruefeFehler(insertFehler, `listenElementeVorschlagen(${tabelle}, insert)`);
+
+    return { eingefuegt: einzufuegen.length, dublettenUebersprungen };
   }
 }
 

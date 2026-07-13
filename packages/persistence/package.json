@@ -21,6 +21,7 @@
     "@konsole/classifier": "workspace:*",
     "@konsole/handlers": "workspace:*",
     "@konsole/llm": "workspace:*",
+    "@konsole/profil-extraktion": "workspace:*",
     "@supabase/supabase-js": "^2.47.0"
   },
   "devDependencies": {
