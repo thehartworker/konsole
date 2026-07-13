@@ -41,6 +41,7 @@ SELECT throws_ok(
      VALUES ('a0000000-0000-0000-0000-000000001002', 'a0000000-0000-0000-0000-000000002001',
              'a0000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000011',
              'W2_presseanfragen_drafter', 'a0000000-0000-0000-0000-000000000104', 'hoch') $$,
+  NULL, NULL,
   'editor_a2 (gleicher Kunde, NICHT zuständig) kann für den sensitiven Vorgang 1002 KEINEN handler_aufrufe-Eintrag anlegen'
 );
 
@@ -62,6 +63,7 @@ SELECT throws_ok(
      VALUES ('a0000000-0000-0000-0000-000000001001', 'a0000000-0000-0000-0000-000000002002',
              'a0000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000011',
              'W2_presseanfragen_drafter', 'a0000000-0000-0000-0000-000000000202', 'mittel') $$,
+  NULL, NULL,
   'editor_b (andere Agentur) kann für einen fremden Vorgang KEINEN handler_aufrufe-Eintrag anlegen'
 );
 
@@ -141,6 +143,7 @@ SELECT throws_ok(
   $$ INSERT INTO audit_log (agentur_id, vorgang_id, nutzer_id, aktion, aktion_payload)
      VALUES ('a0000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000001002',
              'a0000000-0000-0000-0000-000000000104', 'freigabe_erteilt', jsonb_build_object('typ', 'handler_ergebnis')) $$,
+  NULL, NULL,
   'editor_a2 (NICHT zuständig für den sensitiven Vorgang 1002) kann dort auch keinen eigenen audit_log-Eintrag anlegen'
 );
 
@@ -174,6 +177,7 @@ SELECT tests.authenticate_as('a0000000-0000-0000-0000-000000000102'); -- manager
 SELECT throws_ok(
   $$ INSERT INTO llm_nutzung (kunde_id, vorgang_id, handler_slug, input_tokens, output_tokens, modell)
      VALUES ('a0000000-0000-0000-0000-000000000012', NULL, 'W2_presseanfragen_drafter', 100, 50, 'claude-test') $$,
+  NULL, NULL,
   'manager_a (NICHT zugewiesen zu Kunde A2) kann dort keine llm_nutzung-Zeile anlegen'
 );
 
