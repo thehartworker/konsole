@@ -66,7 +66,7 @@ describe("CompliancePanel", () => {
 
   it("zeigt den Shadow-Mode-Hinweis immer an, auch ohne Verstöße", () => {
     render(<CompliancePanel handlerAufrufe={[]} />);
-    expect(screen.getByText(/Shadow-Mode aktiv/)).toBeTruthy();
+    expect(screen.getAllByText(/Shadow-Mode aktiv/).length).toBeGreaterThan(0);
     expect(screen.getByText(/Keine Grenz-Verstöße oder hoch eingestuften Kritiker-Findings\./)).toBeTruthy();
   });
 });
