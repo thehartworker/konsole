@@ -17,16 +17,29 @@
 import { revalidatePath } from "next/cache";
 import { AnthropicProvider } from "@konsole/llm";
 import {
+  SupabaseHandlerAufrufRepository,
   SupabaseKlassifikationsRepository,
   SupabaseKundenProfilRepository,
   SupabasePruefregelnRepository,
   fuehreW1AusUndProtokolliere,
   fuehreW2AusUndProtokolliere,
 } from "@konsole/persistence";
-import { W1_HANDLER_SLUG, W2_HANDLER_SLUG } from "@konsole/handlers";
+import {
+  PRESSEMITTEILUNG_EXPORT_MIME,
+  W1_HANDLER_SLUG,
+  W2_HANDLER_SLUG,
+  pressemitteilungDateiname,
+  renderPressemitteilungDocx,
+  renderPressemitteilungPdf,
+  renderPressemitteilungText,
+  type PressemitteilungExportFormat,
+  type W1Output,
+} from "@konsole/handlers";
 import { createClient } from "@/lib/supabase/server";
 import { briefingAusAnliegen, anfrageAusAnliegen } from "@/lib/handler-input";
 import type { AnliegenZeile } from "@/lib/vorgaenge";
+import type { PressemitteilungPatch } from "@/lib/pressemitteilung-patch";
+import { pressemitteilungBearbeiten, type PressemitteilungBearbeitenResultat } from "@/lib/pressemitteilung-bearbeiten";
 import {
   auditLogFreigabePayload,
   auditLogHandlerAufgerufenPayload,
@@ -224,4 +237,123 @@ export async function rueckfrageSendenAction(
 
   revalidatePath(`/vorgaenge/${vorgangId}`);
   return { status: "erfolg" };
+}
+
+// ============================================================
+// Inline-Editing und Export der W1-Pressemitteilung (Issue #45). Siehe
+// docs/decisions/2026-07-13_konsole-block2-editing-und-export.md.
+// ============================================================
+
+export type { PressemitteilungBearbeitenResultat };
+
+/**
+ * Nimmt einen Feld-Patch (nicht das ganze Dokument), lädt den aktuellen
+ * Stand (`ergebnis_bearbeitet ?? ergebnis`) und reicht das Zusammenführen/
+ * Validieren/Schreiben an pressemitteilungBearbeiten() weiter (testbarer
+ * Kern, siehe src/lib/pressemitteilung-bearbeiten.ts). Der Client
+ * (pressemitteilung-editor.tsx) zeigt die Änderung optimistisch sofort an
+ * und rollt bei "fehler" zurück, siehe Decision, Abschnitt 8.
+ */
+export async function pressemitteilungBearbeitenAction(
+  handlerAufrufId: string,
+  patch: PressemitteilungPatch,
+): Promise<PressemitteilungBearbeitenResultat> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { status: "fehler", meldung: "Nicht angemeldet." };
+  }
+
+  const { data: zeile, error } = await supabase
+    .from("handler_aufrufe")
+    .select("id, vorgang_id, handler_slug, ergebnis, ergebnis_bearbeitet")
+    .eq("id", handlerAufrufId)
+    .maybeSingle();
+  if (error || !zeile) {
+    return { status: "fehler", meldung: "Handler-Ergebnis nicht gefunden oder keine Berechtigung." };
+  }
+  if (zeile.handler_slug !== W1_HANDLER_SLUG) {
+    return { status: "fehler", meldung: `Inline-Editing ist für "${zeile.handler_slug}" noch nicht verfügbar.` };
+  }
+
+  const basis = (zeile.ergebnis_bearbeitet ?? zeile.ergebnis) as unknown as W1Output | null;
+  if (!basis) {
+    return { status: "fehler", meldung: "Für diesen Handler-Aufruf liegt noch kein Ergebnis vor." };
+  }
+
+  const repo = new SupabaseHandlerAufrufRepository(supabase);
+  const resultat = await pressemitteilungBearbeiten(repo, handlerAufrufId, basis, patch);
+  if (resultat.status === "erfolg") {
+    revalidatePath(`/vorgaenge/${zeile.vorgang_id}`);
+  }
+  return resultat;
+}
+
+async function pressemitteilungFuerExportLaden(
+  handlerAufrufId: string,
+): Promise<{ output: W1Output; firmenname: string } | null> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const { data: zeile } = await supabase
+    .from("handler_aufrufe")
+    .select("handler_slug, ergebnis, ergebnis_bearbeitet, kunden(name)")
+    .eq("id", handlerAufrufId)
+    .maybeSingle();
+  if (!zeile || zeile.handler_slug !== W1_HANDLER_SLUG) return null;
+
+  const output = (zeile.ergebnis_bearbeitet ?? zeile.ergebnis) as unknown as W1Output | null;
+  if (!output) return null;
+
+  const kundenRaw = (zeile as { kunden?: unknown }).kunden;
+  const kunde = Array.isArray(kundenRaw) ? kundenRaw[0] : kundenRaw;
+  const firmenname = (kunde as { name?: string } | undefined)?.name ?? "Kunde";
+
+  return { output, firmenname };
+}
+
+export type PressemitteilungExportResultat =
+  | { status: "erfolg"; dateiname: string; mime: string; inhaltBase64: string }
+  | { status: "fehler"; meldung: string };
+
+async function pressemitteilungExportAction(
+  handlerAufrufId: string,
+  format: PressemitteilungExportFormat,
+): Promise<PressemitteilungExportResultat> {
+  const geladen = await pressemitteilungFuerExportLaden(handlerAufrufId);
+  if (!geladen) {
+    return { status: "fehler", meldung: "Pressemitteilung nicht gefunden oder keine Berechtigung." };
+  }
+
+  const draft = geladen.output.pressemitteilung;
+  const inhalt: Buffer =
+    format === "pdf"
+      ? await renderPressemitteilungPdf(draft)
+      : format === "docx"
+        ? await renderPressemitteilungDocx(draft)
+        : Buffer.from(renderPressemitteilungText(draft), "utf-8");
+
+  return {
+    status: "erfolg",
+    dateiname: pressemitteilungDateiname(geladen.firmenname, new Date(), format),
+    mime: PRESSEMITTEILUNG_EXPORT_MIME[format],
+    inhaltBase64: inhalt.toString("base64"),
+  };
+}
+
+export async function pressemitteilungExportPdfAction(handlerAufrufId: string): Promise<PressemitteilungExportResultat> {
+  return pressemitteilungExportAction(handlerAufrufId, "pdf");
+}
+
+export async function pressemitteilungExportDocxAction(handlerAufrufId: string): Promise<PressemitteilungExportResultat> {
+  return pressemitteilungExportAction(handlerAufrufId, "docx");
+}
+
+export async function pressemitteilungExportTextAction(handlerAufrufId: string): Promise<PressemitteilungExportResultat> {
+  return pressemitteilungExportAction(handlerAufrufId, "text");
 }

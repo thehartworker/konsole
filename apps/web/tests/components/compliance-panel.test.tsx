@@ -18,6 +18,8 @@ const W1_MIT_VERSTOSS: HandlerAufrufZeile = {
   fehler: null,
   freigegeben_at: null,
   freigegeben_durch: null,
+  ergebnis_bearbeitet: null,
+  bearbeitet_at: null,
   ergebnis: {
     pressemitteilung: {
       headline: "Test-Headline",

@@ -57,3 +57,14 @@ export {
   type W1HandlerResultat,
   type W1LlmAufruf,
 } from './handler.js';
+
+export {
+  pressemitteilungSegmente,
+  renderPressemitteilungText,
+  renderPressemitteilungPdf,
+  renderPressemitteilungDocx,
+  pressemitteilungDateiname,
+  PRESSEMITTEILUNG_EXPORT_MIME,
+  type PressemitteilungSegment,
+  type PressemitteilungExportFormat,
+} from './export.js';

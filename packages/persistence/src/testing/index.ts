@@ -17,3 +17,9 @@ export {
   FakeKundenQuelldokumenteRepository,
   type FakeKundenQuelldokumenteRepositoryOptions,
 } from './fake-kunden-quelldokumente-repository.js';
+
+export {
+  FakeHandlerAufrufRepository,
+  type FakeHandlerAufrufRepositoryOptions,
+  type FakeHandlerAufrufZeile,
+} from './fake-handler-aufruf-repository.js';

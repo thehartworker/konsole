@@ -21,9 +21,14 @@ function sammleVerstoesseUndFindings(handlerAufrufe: HandlerAufrufZeile[]): {
   for (const eintrag of handlerAufrufe) {
     if (eintrag.status !== "done" || !eintrag.ergebnis) continue;
     const handlerLabel = HANDLER_LABEL[eintrag.handler_slug] ?? eintrag.handler_slug;
+    // ergebnis_bearbeitet ?? ergebnis, wie überall in der Anzeige (Issue #45,
+    // Verbindliche Vorgabe 1) -- ein Edit ändert nur pressemitteilung, nicht
+    // kritiker_findings/grenz_pruefung_ergebnis, aber die Anzeige liest
+    // konsistent denselben Quell-Vorrang wie die Editor-Ansicht.
+    const quelle = eintrag.ergebnis_bearbeitet ?? eintrag.ergebnis;
 
     if (eintrag.handler_slug === W1_HANDLER_SLUG) {
-      const output = eintrag.ergebnis as unknown as W1Output;
+      const output = quelle as unknown as W1Output;
       for (const verstoss of output.grenz_pruefung_ergebnis.verstoesse) {
         verstoesse.push({ ...verstoss, handlerLabel });
       }
@@ -33,7 +38,7 @@ function sammleVerstoesseUndFindings(handlerAufrufe: HandlerAufrufZeile[]): {
         }
       }
     } else {
-      const output = eintrag.ergebnis as unknown as W2Output;
+      const output = quelle as unknown as W2Output;
       for (const verstoss of output.pruefung.verstoesse) {
         verstoesse.push({ ...verstoss, handlerLabel });
       }

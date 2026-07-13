@@ -2,7 +2,7 @@ import type { W1Output, W2Output } from "@konsole/handlers";
 import { W1_HANDLER_SLUG, W2_HANDLER_SLUG } from "@konsole/handlers";
 import type { HandlerAufrufZeile } from "@/lib/vorgaenge";
 import { HANDLER_LABEL } from "./labels";
-import { PressemitteilungAnsicht } from "./pressemitteilung-ansicht";
+import { PressemitteilungEditor } from "./pressemitteilung-editor";
 import { CommsPlanAnsicht } from "./comms-plan-ansicht";
 
 const STATUS_LABEL: Record<string, string> = {
@@ -46,7 +46,12 @@ export function HandlerErgebnis({
             {eintrag.status === "done" && eintrag.ergebnis && (
               <div className="mt-4">
                 {eintrag.handler_slug === W1_HANDLER_SLUG && (
-                  <PressemitteilungAnsicht output={eintrag.ergebnis as unknown as W1Output} />
+                  <PressemitteilungEditor
+                    handlerAufrufId={eintrag.id}
+                    initial={(eintrag.ergebnis_bearbeitet ?? eintrag.ergebnis) as unknown as W1Output}
+                    wurdeBereitsBearbeitet={eintrag.ergebnis_bearbeitet !== null}
+                    warFreigegeben={eintrag.freigegeben_at !== null}
+                  />
                 )}
                 {eintrag.handler_slug === W2_HANDLER_SLUG && (
                   <CommsPlanAnsicht output={eintrag.ergebnis as unknown as W2Output} />

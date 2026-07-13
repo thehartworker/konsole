@@ -100,6 +100,13 @@ export interface HandlerAufrufZeile {
   handler_slug: string;
   status: string;
   ergebnis: Record<string, unknown> | null;
+  /**
+   * Bearbeiteter Zustand relativ zu `ergebnis`, siehe Migration
+   * 20260713190000_konsole_block2_editing.sql. NULL heißt unverändert.
+   * Anzeige/Export lesen immer `ergebnis_bearbeitet ?? ergebnis`.
+   */
+  ergebnis_bearbeitet: Record<string, unknown> | null;
+  bearbeitet_at: string | null;
   fehler: string | null;
   freigegeben_at: string | null;
   freigegeben_durch: string | null;
@@ -148,7 +155,9 @@ export async function ladeVorgangDetail(
         .order("created_at", { ascending: true }),
       supabase
         .from("handler_aufrufe")
-        .select("id, vorgang_id, anliegen_id, handler_slug, status, ergebnis, fehler, freigegeben_at, freigegeben_durch")
+        .select(
+          "id, vorgang_id, anliegen_id, handler_slug, status, ergebnis, ergebnis_bearbeitet, bearbeitet_at, fehler, freigegeben_at, freigegeben_durch",
+        )
         .eq("vorgang_id", vorgangId)
         .is("deleted_at", null)
         .order("created_at", { ascending: true }),
