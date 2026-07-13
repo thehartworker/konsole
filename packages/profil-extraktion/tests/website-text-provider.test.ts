@@ -17,7 +17,7 @@ const ROBOTS_TXT_LEER = '';
 
 describe('ProduktiverWebsiteTextProvider', () => {
   it('lädt robots.txt und die Allowlist-Seiten der Domain, mit korrektem User-Agent-Header', async () => {
-    const fetchImpl = vi.fn(async (url: string | URL, _init?: RequestInit) => {
+    const fetchImpl = vi.fn(async (url: string | URL | Request, _init?: RequestInit) => {
       const urlStr = String(url);
       if (urlStr.endsWith('/robots.txt')) return antwort(ROBOTS_TXT_LEER);
       if (urlStr === 'https://kunde-beispiel.de/') return antwort('<html><body><h1>Willkommen</h1></body></html>');
@@ -42,7 +42,7 @@ describe('ProduktiverWebsiteTextProvider', () => {
 
   it('respektiert ein robots.txt-Disallow: die betroffene Seite wird übersprungen', async () => {
     const robotsTxt = ['User-agent: *', 'Disallow: /impressum'].join('\n');
-    const fetchImpl = vi.fn(async (url: string | URL, _init?: RequestInit) => {
+    const fetchImpl = vi.fn(async (url: string | URL | Request, _init?: RequestInit) => {
       const urlStr = String(url);
       if (urlStr.endsWith('/robots.txt')) return antwort(robotsTxt);
       if (urlStr === 'https://kunde-beispiel.de/') return antwort('<p>Start</p>');
@@ -61,7 +61,7 @@ describe('ProduktiverWebsiteTextProvider', () => {
   });
 
   it('verwirft eine Seite, deren tatsächliche (Redirect-)URL auf eine fremde Domain zeigt', async () => {
-    const fetchImpl = vi.fn(async (url: string | URL, _init?: RequestInit) => {
+    const fetchImpl = vi.fn(async (url: string | URL | Request, _init?: RequestInit) => {
       const urlStr = String(url);
       if (urlStr.endsWith('/robots.txt')) return antwort(ROBOTS_TXT_LEER);
       if (urlStr === 'https://kunde-beispiel.de/') {
@@ -80,7 +80,7 @@ describe('ProduktiverWebsiteTextProvider', () => {
   });
 
   it('überspringt eine Seite mit Nicht-OK-Antwort, ohne die übrigen Seiten abzubrechen', async () => {
-    const fetchImpl = vi.fn(async (url: string | URL, _init?: RequestInit) => {
+    const fetchImpl = vi.fn(async (url: string | URL | Request, _init?: RequestInit) => {
       const urlStr = String(url);
       if (urlStr.endsWith('/robots.txt')) return antwort(ROBOTS_TXT_LEER);
       if (urlStr === 'https://kunde-beispiel.de/') return antwort('', { ok: false });
@@ -98,7 +98,7 @@ describe('ProduktiverWebsiteTextProvider', () => {
   });
 
   it('fängt einen Netzwerkfehler bei einer einzelnen Seite ab und macht mit den übrigen weiter', async () => {
-    const fetchImpl = vi.fn(async (url: string | URL, _init?: RequestInit) => {
+    const fetchImpl = vi.fn(async (url: string | URL | Request, _init?: RequestInit) => {
       const urlStr = String(url);
       if (urlStr.endsWith('/robots.txt')) return antwort(ROBOTS_TXT_LEER);
       if (urlStr === 'https://kunde-beispiel.de/') throw new Error('ECONNRESET');
@@ -116,7 +116,7 @@ describe('ProduktiverWebsiteTextProvider', () => {
   });
 
   it('gibt kein Ergebnis für eine Seite ohne extrahierbaren Text zurück', async () => {
-    const fetchImpl = vi.fn(async (url: string | URL, _init?: RequestInit) => {
+    const fetchImpl = vi.fn(async (url: string | URL | Request, _init?: RequestInit) => {
       const urlStr = String(url);
       if (urlStr.endsWith('/robots.txt')) return antwort(ROBOTS_TXT_LEER);
       if (urlStr === 'https://kunde-beispiel.de/') return antwort('<div><span></span></div>');
@@ -138,7 +138,7 @@ describe('ProduktiverWebsiteTextProvider', () => {
     // (KONSOLE_PROFIL_BOT_USER_AGENT) -- ein Abgleich gegen den vollen String
     // würde diese Regel verfehlen.
     const robotsTxt = ['User-agent: Konsole-Profil-Bot', 'Disallow: /impressum'].join('\n');
-    const fetchImpl = vi.fn(async (url: string | URL, _init?: RequestInit) => {
+    const fetchImpl = vi.fn(async (url: string | URL | Request, _init?: RequestInit) => {
       const urlStr = String(url);
       if (urlStr.endsWith('/robots.txt')) return antwort(robotsTxt);
       if (urlStr === 'https://kunde-beispiel.de/') return antwort('<p>Start</p>');
@@ -156,7 +156,7 @@ describe('ProduktiverWebsiteTextProvider', () => {
   });
 
   it('behandelt eine nicht erreichbare robots.txt als Fail-Open (leeres Regelwerk), kein Absturz', async () => {
-    const fetchImpl = vi.fn(async (url: string | URL, _init?: RequestInit) => {
+    const fetchImpl = vi.fn(async (url: string | URL | Request, _init?: RequestInit) => {
       const urlStr = String(url);
       if (urlStr.endsWith('/robots.txt')) throw new Error('Timeout');
       if (urlStr === 'https://kunde-beispiel.de/') return antwort('<p>Start</p>');
