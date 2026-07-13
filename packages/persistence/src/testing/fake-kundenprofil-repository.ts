@@ -221,19 +221,19 @@ export class FakeKundenProfilRepository implements KundenProfilRepository {
   private alleZeilenFuer(tabelle: KundenProfilListenVorschlagTabelle, kundeId: string): Record<string, unknown>[] {
     switch (tabelle) {
       case 'kunden_boilerplate':
-        return this.boilerplate.filter((zeile) => zeile.kunde_id === kundeId);
+        return this.boilerplate.filter((zeile) => zeile.kunde_id === kundeId) as unknown as Record<string, unknown>[];
       case 'kunden_kennzahlen':
-        return this.kennzahlen.filter((zeile) => zeile.kunde_id === kundeId);
+        return this.kennzahlen.filter((zeile) => zeile.kunde_id === kundeId) as unknown as Record<string, unknown>[];
       case 'kunden_sprecher':
-        return this.sprecher.filter((zeile) => zeile.kunde_id === kundeId);
+        return this.sprecher.filter((zeile) => zeile.kunde_id === kundeId) as unknown as Record<string, unknown>[];
       case 'kunden_kernbotschaften':
-        return this.kernbotschaften.filter((zeile) => zeile.kunde_id === kundeId);
+        return this.kernbotschaften.filter((zeile) => zeile.kunde_id === kundeId) as unknown as Record<string, unknown>[];
       case 'kunden_themen':
-        return this.themen.filter((zeile) => zeile.kunde_id === kundeId);
+        return this.themen.filter((zeile) => zeile.kunde_id === kundeId) as unknown as Record<string, unknown>[];
       case 'kunden_grenzen':
-        return this.grenzen.filter((zeile) => zeile.kunde_id === kundeId);
+        return this.grenzen.filter((zeile) => zeile.kunde_id === kundeId) as unknown as Record<string, unknown>[];
       case 'kunden_medien_kontext':
-        return this.medienKontext.filter((zeile) => zeile.kunde_id === kundeId);
+        return this.medienKontext.filter((zeile) => zeile.kunde_id === kundeId) as unknown as Record<string, unknown>[];
       default: {
         const unbekannt: never = tabelle;
         throw new Error(`FakeKundenProfilRepository: unbekannte Listen-Vorschlag-Tabelle "${String(unbekannt)}"`);
