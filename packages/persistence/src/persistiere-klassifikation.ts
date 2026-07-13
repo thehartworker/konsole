@@ -77,6 +77,7 @@ export async function persistiereErfolgreicheKlassifikation(
         routing_rolle: ergebnis.routing.rolle,
         routing_verteiler: routingVerteilerNutzerIds,
         zustaendige_nutzer_id: zustaendigeNutzerId,
+        rueckfrage_nachricht: ergebnis.rueckfrage_nachricht,
       },
       new Date().toISOString(),
     );

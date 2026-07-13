@@ -46,6 +46,13 @@ export interface VorgangKlassifikationsUpdate {
   routing_rolle: string;
   routing_verteiler: string[];
   zustaendige_nutzer_id: string | null;
+  /**
+   * Erstmals ab Issue #43 (Konsolen-Detailansicht) persistiert -- vorher ein
+   * reiner Klassifikations-Laufzeit-Wert, der nirgends gespeichert wurde.
+   * Siehe docs/decisions/2026-07-13_konsole-block1-vorgangs-detailansicht.md,
+   * Abschnitt 8.
+   */
+  rueckfrage_nachricht: string | null;
 }
 
 export type AuditAktion = 'klassifikation_abgeschlossen';
