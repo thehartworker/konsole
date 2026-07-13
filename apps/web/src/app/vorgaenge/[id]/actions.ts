@@ -26,6 +26,7 @@ import {
 import { W1_HANDLER_SLUG, W2_HANDLER_SLUG } from "@konsole/handlers";
 import { createClient } from "@/lib/supabase/server";
 import { briefingAusAnliegen, anfrageAusAnliegen } from "@/lib/handler-input";
+import type { AnliegenZeile } from "@/lib/vorgaenge";
 import {
   auditLogFreigabePayload,
   auditLogHandlerAufgerufenPayload,
@@ -78,8 +79,9 @@ export async function handlerAusloesenAction(
   }
 
   const zustaendigeNutzerId = vorgang.zustaendige_nutzer_id ?? user.id;
-  const briefingInput = handlerSlug === W1_HANDLER_SLUG ? briefingAusAnliegen(anliegen) : null;
-  const anfrageInput = handlerSlug === W2_HANDLER_SLUG ? anfrageAusAnliegen(anliegen) : null;
+  const anliegenTyped = anliegen as unknown as AnliegenZeile;
+  const briefingInput = handlerSlug === W1_HANDLER_SLUG ? briefingAusAnliegen(anliegenTyped) : null;
+  const anfrageInput = handlerSlug === W2_HANDLER_SLUG ? anfrageAusAnliegen(anliegenTyped) : null;
 
   const { data: handlerAufruf, error: insertFehler } = await supabase
     .from("handler_aufrufe")
@@ -90,7 +92,7 @@ export async function handlerAusloesenAction(
         agenturId: vorgang.agentur_id,
         kundeId: vorgang.kunde_id,
         handlerSlug,
-        input: briefingInput ?? anfrageInput ?? {},
+        input: (briefingInput ?? anfrageInput ?? {}) as Record<string, unknown>,
         zustaendigeNutzerId,
         prioritaet: anliegen.prioritaet,
       }),
