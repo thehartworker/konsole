@@ -86,14 +86,18 @@ SELECT is(
 );
 
 -- ============================================================
--- Nur Service-Role schreibt: keine INSERT-Policy für Endnutzer-Rollen
+-- Seit Konsole Block 1 (Issue #43, Migration 20260713140000): berechtigte
+-- Nutzer-Sessions duerfen llm_nutzung fuer IHRE zugewiesenen Kunden schreiben
+-- (die Konsole loest Handler direkt aus der UI aus). chef_a ist Kunde A1
+-- zugewiesen und darf daher schreiben; die Mandanten-/Zuweisungs-Grenze
+-- bleibt durch die WITH-CHECK-Klausel gewahrt (siehe Test 17 fuer die
+-- Negativ-Faelle).
 -- ============================================================
 
-SELECT throws_like(
+SELECT lives_ok(
   $$ INSERT INTO llm_nutzung (kunde_id, handler_slug, input_tokens, output_tokens, modell)
      VALUES ('a0000000-0000-0000-0000-000000000011', 'klassifikation', 1, 1, 'test') $$,
-  '%row-level security policy%',
-  'chef_a kann KEINE llm_nutzung-Zeile per authentifizierter Session anlegen (nur Service-Role schreibt)'
+  'chef_a kann fuer seinen zugewiesenen Kunden A1 eine llm_nutzung-Zeile anlegen (berechtigte Session)'
 );
 
 SELECT * FROM finish();
