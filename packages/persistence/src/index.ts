@@ -29,6 +29,7 @@ export {
 
 export {
   SupabaseKundenProfilRepository,
+  KundenProfilW1KontextQuellenProvider,
   KundenProfilW2KontextQuellenProvider,
   type KundenProfilRepository,
   type KundenProfil,
@@ -58,6 +59,12 @@ export {
   type FuehreW2AusEingabe,
   type FuehreW2AusResultat,
 } from './w2-orchestrierung.js';
+
+export {
+  fuehreW1AusUndProtokolliere,
+  type FuehreW1AusEingabe,
+  type FuehreW1AusResultat,
+} from './w1-orchestrierung.js';
 
 export { istInhaltlichAehnlich, filterDubletten, type FilterDublettenErgebnis } from './aehnlichkeit.js';
 
