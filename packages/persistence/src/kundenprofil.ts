@@ -4,11 +4,22 @@
 // bekommen. Siehe docs/decisions/2026-07-12_kundenprofil.md für die volle
 // Begründung, analog zu PruefregelnRepository (packages/persistence/src/pruefregeln.ts)
 // im Aufbau (Interface + Supabase-Implementierung, Fake-Implementierung in
-// src/testing/).
+// src/testing/). Die W1-Anbindung (w1KontextLaden/w1KontextQuellenProviderErstellen)
+// kam mit Issue #41 dazu, siehe docs/decisions/2026-07-13_w1-pressemitteilung-drafter.md.
 
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { W2_HANDLER_SLUG } from '@konsole/handlers';
-import type { Pruefregel, PraezedenzEintrag, SprachregelungsEintrag, W2KontextQuellenProvider, W2KundeKontextInput } from '@konsole/handlers';
+import { W1_HANDLER_SLUG, W2_HANDLER_SLUG } from '@konsole/handlers';
+import type {
+  Pruefregel,
+  PraezedenzEintrag,
+  SprachregelungsEintrag,
+  W1KontextQuellenProvider,
+  W1KundeKontextInput,
+  W1PraezedenzEintrag,
+  W1SprecherEintrag,
+  W2KontextQuellenProvider,
+  W2KundeKontextInput,
+} from '@konsole/handlers';
 import type { ProfilExtraktionsQuelle } from '@konsole/profil-extraktion';
 import { filterDubletten } from './aehnlichkeit.js';
 
@@ -247,6 +258,9 @@ export interface KundenProfilRepository {
   elementStatusSetzen(tabelle: KundenProfilListenTabelle, id: string, status: KundenProfilElementStatus): Promise<void>;
   w2KontextLaden(kundeId: string): Promise<W2KundeKontextInput>;
   w2KontextQuellenProviderErstellen(kundeId: string): W2KontextQuellenProvider;
+  /** Tonalität (Kern-Felder) EAGER geladen, analog w2KontextLaden -- siehe docs/decisions/2026-07-13_w1-pressemitteilung-drafter.md, Abschnitt 2. */
+  w1KontextLaden(kundeId: string): Promise<W1KundeKontextInput>;
+  w1KontextQuellenProviderErstellen(kundeId: string): W1KontextQuellenProvider;
   deterministischeGrenzenAlsPruefregeln(kundeId: string, handlerSlug: string): Promise<Pruefregel[]>;
 
   /**
@@ -321,6 +335,73 @@ export class KundenProfilW2KontextQuellenProvider implements W2KontextQuellenPro
 
     pruefeFehler(error, 'praezedenzenLaden');
     return (data ?? []).map((zeile) => ({ anfrage_thema: zeile.titel as string, antwort_auszug: zeile.volltext as string }));
+  }
+}
+
+/**
+ * Injizierbare Quelle der drei in W1 angebundenen Wissens-Kategorien
+ * (Präzedenzen, Boilerplate, Sprecher), gebunden an einen konkreten Kunden.
+ * Siehe docs/decisions/2026-07-13_w1-pressemitteilung-drafter.md, Abschnitt 2:
+ * `praezedenzenLaden` nur `status = 'freigegeben'` (wie bei W2),
+ * `boilerplateLaden` bereits ab `status != 'abgeleitet'` (Boilerplate ist
+ * risikoärmer als ein voller Präzedenzfall), `sprecherLaden` liefert die
+ * Zeile unabhängig vom Status -- `zitat_freigabe` ist die eigentliche
+ * Freigabe-Gate, geprüft im Handler (packages/handlers/src/w1/handler.ts,
+ * erzwingeZitatFreigabe).
+ */
+export class KundenProfilW1KontextQuellenProvider implements W1KontextQuellenProvider {
+  constructor(
+    private readonly client: SupabaseClient,
+    private readonly kundeId: string,
+  ) {}
+
+  async praezedenzenLaden(_kundeSlug: string, _anlass: string): Promise<W1PraezedenzEintrag[]> {
+    const { data, error } = await this.client
+      .from('kunden_praezedenzfaelle')
+      .select('titel, volltext')
+      .eq('kunde_id', this.kundeId)
+      .eq('handler_slug', W1_HANDLER_SLUG)
+      .eq('status', 'freigegeben')
+      .is('deleted_at', null);
+
+    pruefeFehler(error, 'praezedenzenLaden(W1)');
+    return (data ?? []).map((zeile) => ({ titel: zeile.titel as string, volltext: zeile.volltext as string }));
+  }
+
+  async boilerplateLaden(_kundeSlug: string, laenge: 'kurz' | 'lang', sprache: string): Promise<string | null> {
+    const { data, error } = await this.client
+      .from('kunden_boilerplate')
+      .select('text, status, stand')
+      .eq('kunde_id', this.kundeId)
+      .eq('typ', laenge)
+      .eq('sprache', sprache)
+      .neq('status', 'abgeleitet')
+      .is('deleted_at', null)
+      .order('stand', { ascending: false, nullsFirst: false })
+      .limit(1)
+      .maybeSingle();
+
+    pruefeFehler(error, 'boilerplateLaden');
+    return (data?.text as string | undefined) ?? null;
+  }
+
+  async sprecherLaden(_kundeSlug: string, sprecherName: string): Promise<W1SprecherEintrag | null> {
+    const { data, error } = await this.client
+      .from('kunden_sprecher')
+      .select('name, rolle, exakte_schreibweise, zitat_freigabe')
+      .eq('kunde_id', this.kundeId)
+      .eq('name', sprecherName)
+      .is('deleted_at', null)
+      .maybeSingle();
+
+    pruefeFehler(error, 'sprecherLaden');
+    if (!data) return null;
+    return {
+      name: data.name as string,
+      rolle: (data.rolle as string | null) ?? null,
+      exakte_schreibweise: (data.exakte_schreibweise as string | null) ?? null,
+      zitat_freigabe: data.zitat_freigabe as boolean,
+    };
   }
 }
 
@@ -431,6 +512,36 @@ export class SupabaseKundenProfilRepository implements KundenProfilRepository {
       sprachregelungen_slug: kunde.slug as string,
       thema_positionierung,
     };
+  }
+
+  async w1KontextLaden(kundeId: string): Promise<W1KundeKontextInput> {
+    const { data: kunde, error: kundeFehler } = await this.client.from('kunden').select('slug').eq('id', kundeId).maybeSingle();
+    pruefeFehler(kundeFehler, 'w1KontextLaden(kunde)');
+    if (!kunde) {
+      throw new Error(`SupabaseKundenProfilRepository.w1KontextLaden: kunde ${kundeId} existiert nicht oder ist gelöscht.`);
+    }
+
+    const { data: profil, error: profilFehler } = await this.client
+      .from('kunden_profil')
+      .select('grundton, stil_parameter, anrede_konvention, gendering_konvention')
+      .eq('kunde_id', kundeId)
+      .is('deleted_at', null)
+      .maybeSingle();
+    pruefeFehler(profilFehler, 'w1KontextLaden(profil)');
+
+    return {
+      kunde_slug: kunde.slug as string,
+      tonalitaet: {
+        grundton: (profil?.grundton as string | null | undefined) ?? null,
+        stil_parameter: (profil?.stil_parameter as Record<string, unknown> | undefined) ?? {},
+        anrede_konvention: (profil?.anrede_konvention as 'du' | 'sie' | null | undefined) ?? null,
+        gendering_konvention: (profil?.gendering_konvention as string | null | undefined) ?? null,
+      },
+    };
+  }
+
+  w1KontextQuellenProviderErstellen(kundeId: string): W1KontextQuellenProvider {
+    return new KundenProfilW1KontextQuellenProvider(this.client, kundeId);
   }
 
   w2KontextQuellenProviderErstellen(kundeId: string): W2KontextQuellenProvider {

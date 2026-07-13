@@ -5,8 +5,18 @@
 // 14_kundenprofil_status_uebergang.test.sql). Erlaubt, gestuft befüllte
 // Profile (nur Pflicht-Minimum) und Status-Übergänge direkt zu inspizieren.
 
-import { W2_HANDLER_SLUG } from '@konsole/handlers';
-import type { PraezedenzEintrag, SprachregelungsEintrag, W2KontextQuellenProvider, W2KundeKontextInput, Pruefregel } from '@konsole/handlers';
+import { W1_HANDLER_SLUG, W2_HANDLER_SLUG } from '@konsole/handlers';
+import type {
+  PraezedenzEintrag,
+  SprachregelungsEintrag,
+  W1KontextQuellenProvider,
+  W1KundeKontextInput,
+  W1PraezedenzEintrag,
+  W1SprecherEintrag,
+  W2KontextQuellenProvider,
+  W2KundeKontextInput,
+  Pruefregel,
+} from '@konsole/handlers';
 import type { ProfilExtraktionsQuelle } from '@konsole/profil-extraktion';
 import { filterDubletten } from '../aehnlichkeit.js';
 import {
@@ -90,6 +100,42 @@ class FakeW2KontextQuellenProvider implements W2KontextQuellenProvider {
   }
 }
 
+class FakeW1KontextQuellenProvider implements W1KontextQuellenProvider {
+  constructor(
+    private readonly repo: FakeKundenProfilRepository,
+    private readonly kundeId: string,
+  ) {}
+
+  async praezedenzenLaden(_kundeSlug: string, _anlass: string): Promise<W1PraezedenzEintrag[]> {
+    return this.repo.praezedenzfaelle
+      .filter(
+        (zeile) => zeile.kunde_id === this.kundeId && zeile.handler_slug === W1_HANDLER_SLUG && zeile.status === 'freigegeben',
+      )
+      .map((zeile) => ({ titel: zeile.titel, volltext: zeile.volltext }));
+  }
+
+  async boilerplateLaden(_kundeSlug: string, laenge: 'kurz' | 'lang', sprache: string): Promise<string | null> {
+    const treffer = this.repo.boilerplate
+      .filter(
+        (zeile) =>
+          zeile.kunde_id === this.kundeId && zeile.typ === laenge && zeile.sprache === sprache && zeile.status !== 'abgeleitet',
+      )
+      .sort((a, b) => (b.stand ?? '').localeCompare(a.stand ?? ''));
+    return treffer[0]?.text ?? null;
+  }
+
+  async sprecherLaden(_kundeSlug: string, sprecherName: string): Promise<W1SprecherEintrag | null> {
+    const zeile = this.repo.sprecher.find((eintrag) => eintrag.kunde_id === this.kundeId && eintrag.name === sprecherName);
+    if (!zeile) return null;
+    return {
+      name: zeile.name,
+      rolle: zeile.rolle,
+      exakte_schreibweise: zeile.exakte_schreibweise,
+      zitat_freigabe: zeile.zitat_freigabe,
+    };
+  }
+}
+
 export class FakeKundenProfilRepository implements KundenProfilRepository {
   private readonly kundenSlugs: Map<string, string>;
   readonly kern: Map<string, KundenProfilKern>;
@@ -159,6 +205,28 @@ export class FakeKundenProfilRepository implements KundenProfilRepository {
 
   w2KontextQuellenProviderErstellen(kundeId: string): W2KontextQuellenProvider {
     return new FakeW2KontextQuellenProvider(this, kundeId);
+  }
+
+  async w1KontextLaden(kundeId: string): Promise<W1KundeKontextInput> {
+    const slug = this.kundenSlugs.get(kundeId);
+    if (!slug) {
+      throw new Error(`FakeKundenProfilRepository.w1KontextLaden: kunde ${kundeId} existiert nicht oder ist gelöscht.`);
+    }
+    const kern = this.kern.get(kundeId);
+
+    return {
+      kunde_slug: slug,
+      tonalitaet: {
+        grundton: kern?.grundton ?? null,
+        stil_parameter: kern?.stil_parameter ?? {},
+        anrede_konvention: kern?.anrede_konvention ?? null,
+        gendering_konvention: kern?.gendering_konvention ?? null,
+      },
+    };
+  }
+
+  w1KontextQuellenProviderErstellen(kundeId: string): W1KontextQuellenProvider {
+    return new FakeW1KontextQuellenProvider(this, kundeId);
   }
 
   async deterministischeGrenzenAlsPruefregeln(kundeId: string, handlerSlug: string): Promise<Pruefregel[]> {

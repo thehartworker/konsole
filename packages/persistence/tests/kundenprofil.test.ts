@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { sammleKontext, type W2Input } from '@konsole/handlers';
+import { sammleKontext, sammleW1Kontext, type W1Input, type W2Input } from '@konsole/handlers';
 import { FakeKundenProfilRepository } from '../src/testing/fake-kundenprofil-repository.js';
 
 describe('FakeKundenProfilRepository', () => {
@@ -227,6 +227,142 @@ describe('FakeKundenProfilRepository', () => {
 
     expect(gesammelt.sprachregelungen.verfuegbar).toBe(false);
     expect(gesammelt.praezedenzen.verfuegbar).toBe(false);
+    expect(gesammelt.hinweise.length).toBeGreaterThan(0);
+  });
+
+  it('w1KontextLaden liefert die Tonalität EAGER aus kunden_profil, ohne Statusfilterung', async () => {
+    const repo = new FakeKundenProfilRepository({
+      kundenSlugs: { 'kunde-a': 'kunde-a' },
+      kern: {
+        'kunde-a': {
+          grundton: 'warm-handwerklich',
+          anrede_konvention: 'du',
+          gendering_konvention: 'gender-stern',
+          stil_parameter: { satzlaenge: 'kurz' },
+        },
+      },
+    });
+
+    const kontext = await repo.w1KontextLaden('kunde-a');
+
+    expect(kontext.kunde_slug).toBe('kunde-a');
+    expect(kontext.tonalitaet).toEqual({
+      grundton: 'warm-handwerklich',
+      anrede_konvention: 'du',
+      gendering_konvention: 'gender-stern',
+      stil_parameter: { satzlaenge: 'kurz' },
+    });
+  });
+
+  it('w1KontextLaden liefert eine leere Tonalität (alle Felder null/leer), wenn kein Kern-Datensatz existiert', async () => {
+    const repo = new FakeKundenProfilRepository({ kundenSlugs: { 'kunde-a': 'kunde-a' } });
+
+    const kontext = await repo.w1KontextLaden('kunde-a');
+
+    expect(kontext.tonalitaet).toEqual({
+      grundton: null,
+      anrede_konvention: null,
+      gendering_konvention: null,
+      stil_parameter: {},
+    });
+  });
+
+  it('w1KontextLaden wirft, wenn der Kunde nicht existiert', async () => {
+    const repo = new FakeKundenProfilRepository({ kundenSlugs: {} });
+    await expect(repo.w1KontextLaden('kunde-unbekannt')).rejects.toThrow('existiert nicht');
+  });
+
+  it('deterministischeGrenzenAlsPruefregeln funktioniert unverändert für W1_pressemitteilung_drafter (handler-agnostisch)', async () => {
+    const repo = new FakeKundenProfilRepository({
+      kundenSlugs: { 'kunde-a': 'kunde-a' },
+      grenzen: [
+        {
+          id: 'g1',
+          kunde_id: 'kunde-a',
+          typ: 'pflichtbaustein',
+          inhalt: 'Pflichttext gemäß Heilmittelwerbegesetz',
+          textart_geltungsbereich: null,
+          ist_deterministisch_erzwungen: true,
+          status: 'abgeleitet',
+        },
+      ],
+    });
+
+    const regeln = await repo.deterministischeGrenzenAlsPruefregeln('kunde-a', 'W1_pressemitteilung_drafter');
+
+    expect(regeln).toHaveLength(1);
+    expect(regeln[0]).toMatchObject({
+      handler_slug: 'W1_pressemitteilung_drafter',
+      baustein_name: 'kundengrenze_pflichtbaustein',
+      parameter: { text: 'Pflichttext gemäß Heilmittelwerbegesetz' },
+    });
+  });
+
+  it('w1KontextQuellenProviderErstellen: Präzedenzen nur bei status=freigegeben, Boilerplate bereits ab status!=abgeleitet', async () => {
+    const repo = new FakeKundenProfilRepository({
+      kundenSlugs: { 'kunde-a': 'kunde-a' },
+      praezedenzfaelle: [
+        { id: 'p1', kunde_id: 'kunde-a', handler_slug: 'W1_pressemitteilung_drafter', titel: 'Freigegeben', volltext: 'Text A', freigegeben_am: '2026-01-01', status: 'freigegeben' },
+        { id: 'p2', kunde_id: 'kunde-a', handler_slug: 'W1_pressemitteilung_drafter', titel: 'Abgeleitet', volltext: 'Text B', freigegeben_am: null, status: 'abgeleitet' },
+      ],
+      boilerplate: [
+        { id: 'b1', kunde_id: 'kunde-a', typ: 'lang', sprache: 'de', text: 'Vorläufige Boilerplate', status: 'vorlaeufig', stand: null },
+      ],
+    });
+
+    const provider = repo.w1KontextQuellenProviderErstellen('kunde-a');
+
+    const praezedenzen = await provider.praezedenzenLaden('kunde-a', 'Anlass');
+    expect(praezedenzen).toEqual([{ titel: 'Freigegeben', volltext: 'Text A' }]);
+
+    const boilerplate = await provider.boilerplateLaden('kunde-a', 'lang', 'de');
+    expect(boilerplate).toBe('Vorläufige Boilerplate');
+  });
+
+  it('w1KontextQuellenProviderErstellen: sprecherLaden liefert zitat_freigabe unverändert (Freigabe-Gate liegt im Handler)', async () => {
+    const repo = new FakeKundenProfilRepository({
+      kundenSlugs: { 'kunde-a': 'kunde-a' },
+      sprecher: [
+        { id: 's1', kunde_id: 'kunde-a', name: 'Dr. Mara Beispiel', rolle: 'Geschäftsführung', exakte_schreibweise: 'Dr. Mara Beispiel', zitat_freigabe: false, status: 'freigegeben' },
+      ],
+    });
+
+    const provider = repo.w1KontextQuellenProviderErstellen('kunde-a');
+    const sprecher = await provider.sprecherLaden('kunde-a', 'Dr. Mara Beispiel');
+
+    expect(sprecher).toEqual({
+      name: 'Dr. Mara Beispiel',
+      rolle: 'Geschäftsführung',
+      exakte_schreibweise: 'Dr. Mara Beispiel',
+      zitat_freigabe: false,
+    });
+  });
+
+  it('w1KontextQuellenProviderErstellen: leeres Profil führt zu Handler-Fallback-Hinweisen statt zu einem Fehler', async () => {
+    const repo = new FakeKundenProfilRepository({ kundenSlugs: { 'kunde-a': 'kunde-a' } });
+    const kontextProvider = repo.w1KontextQuellenProviderErstellen('kunde-a');
+    const kundeKontext = await repo.w1KontextLaden('kunde-a');
+
+    const input: W1Input = {
+      briefing: {
+        anlass: 'Testanlass',
+        kernbotschaft: null,
+        fakten: [],
+        zitat_sprecher: null,
+        zitat_kernaussage: null,
+        ziel_medien_gruppe: null,
+        boilerplate_referenz: null,
+        laenge_ziel: 'standard',
+        sperrfrist_at: null,
+        zusatz_hinweis: null,
+      },
+      kunde_kontext: kundeKontext,
+    };
+
+    const gesammelt = await sammleW1Kontext(input, kontextProvider);
+
+    expect(gesammelt.praezedenzen.verfuegbar).toBe(false);
+    expect(gesammelt.boilerplate.verfuegbar).toBe(false);
     expect(gesammelt.hinweise.length).toBeGreaterThan(0);
   });
 });
