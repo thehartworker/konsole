@@ -61,6 +61,21 @@
 
 **Verworfen:** Headline in `GUTER_DRAFT` kürzen, damit sie nicht umbricht. Der Renderer muss mit realistischen (langen) Headlines umgehen -- eine gekürzte Fixture verschiebt denselben Bug nur auf den nächsten Wechsel der Fixture-Daten.
 
+## Aufgabe G: React-Testing-Library-Cleanup in apps/web
+
+**Problem:** `@testing-library/react` räumt den DOM zwischen Tests bei Vitest nicht automatisch auf (anders als bei Jest, wo das über `jest-environment-jsdom`/Auto-Cleanup-Hooks implizit passiert). `apps/web/vitest.config.ts` hatte weder `setupFiles` noch existierte eine Setup-Datei mit `afterEach(cleanup)`. Solange nur eine Test-Datei mit `getByRole`-Aufrufen lief, fiel das nicht auf, weil jede Datei ihren eigenen jsdom-Body-Zustand hatte. Sobald `compliance-panel.test.tsx` (Baustein B) dazukam, akkumulierten sich gerenderte Komponenten über Testdatei-Grenzen im selben Testlauf, und der bestehende Barrierefreiheits-Test in `pressemitteilung-editor.test.tsx` sah acht Kopien der Headline im DOM -- `Found multiple elements with role "button"`.
+
+**Optionen:**
+(a) Ein globales `setupFiles`-Eintrag in `vitest.config.ts` mit einer zentralen Datei, die `afterEach(cleanup)` einmal registriert.
+(b) Per-Test-`afterEach(cleanup)` direkt in jeder betroffenen Test-Datei.
+(c) `cleanup`-Import am Kopf jeder Test-Datei, die Testing-Library nutzt (ohne expliziten `afterEach`-Aufruf, verlassen auf manuelles Aufräumen am Dateiende).
+
+**Entscheidung:** (a). Die fehlende Automatik ist kein Merkmal einzelner Test-Dateien, sondern eine Eigenschaft der Kombination Vitest plus Testing-Library selbst -- sie betrifft jede aktuelle und jede künftige Test-Datei in `apps/web`, die `render()` aufruft, unabhängig davon, ob ihr Autor an das Cleanup-Problem denkt. Eine zentrale Setup-Datei behebt die Ursache an der Stelle, an der Vitest sie kennt (`test.setupFiles`), statt das Symptom in jeder Datei einzeln zu behandeln.
+
+**Verworfen:** (b) verlangt Disziplin bei jeder neuen Test-Datei und wiederholt denselben Boilerplate n-mal -- vergisst ein Autor den `afterEach`-Block, ist der Bug wieder da, lautlos, bis eine zweite Test-Datei im selben Lauf betroffen ist. (c) ist strukturell dieselbe Schwäche wie (b), nur mit einem Import statt eines Hooks -- kein technischer Mechanismus erzwingt, dass jede Datei ihn tatsächlich einbindet. Beide Alternativen sind genau das Muster, das dieser Bug bereits einmal ausgenutzt hat: eine implizite Voraussetzung (DOM-Zustand pro Testdatei), die nur so lange hält, wie niemand sie prüft.
+
+**Umsetzung:** Neue Datei `apps/web/vitest.setup.ts` mit einem einzigen `afterEach(() => cleanup())`. In `vitest.config.ts` referenziert über `test.setupFiles: ["./vitest.setup.ts"]`. Keine Änderung an bestehenden Test-Dateien -- sie waren korrekt geschrieben und brauchten nur die fehlende Setup-Datei, kein `queryAllByRole` oder andere Symptombehandlung an den Assertions selbst.
+
 ## Scope-Grenzen (aus dem Issue übernommen)
 
 - Keine Änderung an `packages/handlers/src/index.ts` (`.js`-Suffix bleibt Standard).
