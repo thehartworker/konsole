@@ -9,10 +9,23 @@
 // Bewusst schlichte Typografie ohne Farb-Akzente, ohne Logo/Kopfzeile (v1,
 // Corporate-Design kommt mit Block 4 White-Label). Serif-Schriften sind die
 // PDF-Standard-Fonts (Times-*), kein Font-Embedding nötig.
+//
+// pdfkit/docx werden bewusst per dynamischem `await import(...)` geladen,
+// nicht statisch am Datei-Anfang: apps/web transpiliert @konsole/handlers
+// (rohes TypeScript, kein Vorab-Build), ein statischer Import würde pdfkit/
+// docx damit in Next.js' Webpack-Bundling-Pfad ziehen. pdfkit bringt eigene
+// Font-Metriken-Dateien mit (z. B. Helvetica.afm), die Next.js beim
+// Bundling nicht mitkopiert -- Laufzeitfehler "ENOENT ... Helvetica.afm" im
+// ersten produktiven `next build`. Ein lazy Import lädt beide Pakete erst
+// zur Aufrufzeit im Node-Serverprozess, unabhängig von Next.js-Bundling-
+// Konfiguration. Siehe docs/decisions/2026-07-14_konsolen-setup-haertung.md,
+// Baustein A.
 
-import PDFDocument from 'pdfkit';
-import { Document, HeadingLevel, Packer, Paragraph, TextRun } from 'docx';
 import type { PressemitteilungDraft } from './schema.js';
+
+type DocxParagraph = import('docx').Paragraph;
+type DocxTextRun = import('docx').TextRun;
+type DocxTextRunKlasse = typeof import('docx').TextRun;
 
 export type PressemitteilungSegment =
   | { typ: 'headline'; text: string }
@@ -76,7 +89,9 @@ export function renderPressemitteilungText(draft: PressemitteilungDraft): string
 const PDF_GRAU = '#555555';
 const PDF_SCHWARZ = '#000000';
 
-export function renderPressemitteilungPdf(draft: PressemitteilungDraft): Promise<Buffer> {
+export async function renderPressemitteilungPdf(draft: PressemitteilungDraft): Promise<Buffer> {
+  const { default: PDFDocument } = await import('pdfkit');
+
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({ size: 'A4', margins: { top: 72, bottom: 72, left: 72, right: 72 } });
     const chunks: Buffer[] = [];
@@ -138,47 +153,52 @@ export function renderPressemitteilungPdf(draft: PressemitteilungDraft): Promise
 const DOCX_GRAU = '666666';
 
 /** Zerlegt Text an \n in mehrere TextRuns mit expliziten Zeilenumbrüchen (docx kennt kein automatisches \n-Handling). */
-function zeilenTextRuns(text: string, optionen: { italics?: boolean; bold?: boolean; size?: number; color?: string } = {}): TextRun[] {
+function zeilenTextRuns(
+  TextRun: DocxTextRunKlasse,
+  text: string,
+  optionen: { italics?: boolean; bold?: boolean; size?: number; color?: string } = {},
+): DocxTextRun[] {
   return text.split('\n').map((zeile, index) => new TextRun({ text: zeile, break: index > 0 ? 1 : undefined, ...optionen }));
 }
 
 export async function renderPressemitteilungDocx(draft: PressemitteilungDraft): Promise<Buffer> {
-  const children: Paragraph[] = [];
+  const { Document, HeadingLevel, Packer, Paragraph, TextRun } = await import('docx');
+  const children: DocxParagraph[] = [];
 
   for (const segment of pressemitteilungSegmente(draft)) {
     switch (segment.typ) {
       case 'headline':
-        children.push(new Paragraph({ heading: HeadingLevel.HEADING_1, children: zeilenTextRuns(segment.text) }));
+        children.push(new Paragraph({ heading: HeadingLevel.HEADING_1, children: zeilenTextRuns(TextRun, segment.text) }));
         break;
       case 'sub_headline':
-        children.push(new Paragraph({ spacing: { after: 200 }, children: zeilenTextRuns(segment.text, { italics: true, color: DOCX_GRAU }) }));
+        children.push(new Paragraph({ spacing: { after: 200 }, children: zeilenTextRuns(TextRun, segment.text, { italics: true, color: DOCX_GRAU }) }));
         break;
       case 'ort_datum':
-        children.push(new Paragraph({ spacing: { after: 200 }, children: zeilenTextRuns(segment.text, { size: 18, color: DOCX_GRAU }) }));
+        children.push(new Paragraph({ spacing: { after: 200 }, children: zeilenTextRuns(TextRun, segment.text, { size: 18, color: DOCX_GRAU }) }));
         break;
       case 'lead_absatz':
-        children.push(new Paragraph({ spacing: { after: 200 }, children: zeilenTextRuns(segment.text, { bold: true }) }));
+        children.push(new Paragraph({ spacing: { after: 200 }, children: zeilenTextRuns(TextRun, segment.text, { bold: true }) }));
         break;
       case 'ausfuehrung_absatz':
-        children.push(new Paragraph({ spacing: { after: 200 }, children: zeilenTextRuns(segment.text) }));
+        children.push(new Paragraph({ spacing: { after: 200 }, children: zeilenTextRuns(TextRun, segment.text) }));
         break;
       case 'zitat':
         children.push(
-          new Paragraph({ indent: { left: 400 }, children: zeilenTextRuns(`„${segment.text}“`, { italics: true }) }),
+          new Paragraph({ indent: { left: 400 }, children: zeilenTextRuns(TextRun, `„${segment.text}“`, { italics: true }) }),
         );
         children.push(
           new Paragraph({
             indent: { left: 400 },
             spacing: { after: 200 },
-            children: zeilenTextRuns(`${segment.sprecher_name}, ${segment.sprecher_rolle}`, { size: 18, color: DOCX_GRAU }),
+            children: zeilenTextRuns(TextRun, `${segment.sprecher_name}, ${segment.sprecher_rolle}`, { size: 18, color: DOCX_GRAU }),
           }),
         );
         break;
       case 'boilerplate':
-        children.push(new Paragraph({ spacing: { after: 200 }, children: zeilenTextRuns(segment.text, { size: 18, color: DOCX_GRAU }) }));
+        children.push(new Paragraph({ spacing: { after: 200 }, children: zeilenTextRuns(TextRun, segment.text, { size: 18, color: DOCX_GRAU }) }));
         break;
       case 'kontakt_fusszeile':
-        children.push(new Paragraph({ children: zeilenTextRuns(segment.text, { size: 18, color: DOCX_GRAU }) }));
+        children.push(new Paragraph({ children: zeilenTextRuns(TextRun, segment.text, { size: 18, color: DOCX_GRAU }) }));
         break;
     }
   }

@@ -14,9 +14,11 @@ interface FindingMitHandler extends KritikerFinding {
 function sammleVerstoesseUndFindings(handlerAufrufe: HandlerAufrufZeile[]): {
   verstoesse: VerstossMitHandler[];
   hoheFindings: FindingMitHandler[];
+  nichtVerfuegbareHandler: string[];
 } {
   const verstoesse: VerstossMitHandler[] = [];
   const hoheFindings: FindingMitHandler[] = [];
+  const nichtVerfuegbareHandler: string[] = [];
 
   for (const eintrag of handlerAufrufe) {
     if (eintrag.status !== "done" || !eintrag.ergebnis) continue;
@@ -27,29 +29,43 @@ function sammleVerstoesseUndFindings(handlerAufrufe: HandlerAufrufZeile[]): {
     // konsistent denselben Quell-Vorrang wie die Editor-Ansicht.
     const quelle = eintrag.ergebnis_bearbeitet ?? eintrag.ergebnis;
 
+    // Issue #47: ein unvollständiges Handler-Ergebnis (z. B. aus einem noch
+    // nicht Zod-validierten Zwischenstand) darf das Panel nicht crashen
+    // lassen -- gerade hier soll die Beraterin erfahren, dass etwas nicht
+    // stimmt, statt dass die ganze Detailansicht mitreißt. Fehlende
+    // Teil-Objekte werden als "nicht verfügbar" markiert, fehlende Arrays
+    // wie eine leere Liste behandelt.
     if (eintrag.handler_slug === W1_HANDLER_SLUG) {
-      const output = quelle as unknown as W1Output;
-      for (const verstoss of output.grenz_pruefung_ergebnis.verstoesse) {
-        verstoesse.push({ ...verstoss, handlerLabel });
+      const output = quelle as unknown as Partial<W1Output>;
+      if (!output.grenz_pruefung_ergebnis) {
+        nichtVerfuegbareHandler.push(handlerLabel);
+      } else {
+        for (const verstoss of output.grenz_pruefung_ergebnis.verstoesse ?? []) {
+          verstoesse.push({ ...verstoss, handlerLabel });
+        }
       }
-      for (const finding of output.kritiker_findings) {
+      for (const finding of output.kritiker_findings ?? []) {
         if (finding.schweregrad === "hoch") {
           hoheFindings.push({ ...finding, handlerLabel });
         }
       }
     } else {
-      const output = quelle as unknown as W2Output;
-      for (const verstoss of output.pruefung.verstoesse) {
-        verstoesse.push({ ...verstoss, handlerLabel });
+      const output = quelle as unknown as Partial<W2Output>;
+      if (!output.pruefung) {
+        nichtVerfuegbareHandler.push(handlerLabel);
+      } else {
+        for (const verstoss of output.pruefung.verstoesse ?? []) {
+          verstoesse.push({ ...verstoss, handlerLabel });
+        }
       }
     }
   }
 
-  return { verstoesse, hoheFindings };
+  return { verstoesse, hoheFindings, nichtVerfuegbareHandler };
 }
 
 export function CompliancePanel({ handlerAufrufe }: { handlerAufrufe: HandlerAufrufZeile[] }) {
-  const { verstoesse, hoheFindings } = sammleVerstoesseUndFindings(handlerAufrufe);
+  const { verstoesse, hoheFindings, nichtVerfuegbareHandler } = sammleVerstoesseUndFindings(handlerAufrufe);
 
   return (
     <section className="rounded-lg border border-border bg-surface p-6">
@@ -59,6 +75,12 @@ export function CompliancePanel({ handlerAufrufe }: { handlerAufrufe: HandlerAuf
         <strong>Shadow-Mode aktiv:</strong> nichts geht automatisch raus. Jeder Entwurf wartet auf bewusste Freigabe durch eine Beraterin,
         {" "}der Versand selbst ist noch nicht angebunden.
       </div>
+
+      {nichtVerfuegbareHandler.length > 0 && (
+        <div className="mt-3 rounded-md border border-warning-border bg-warning-bg p-3 text-sm text-ink">
+          Compliance-Prüfung nicht verfügbar ({nichtVerfuegbareHandler.join(", ")}).
+        </div>
+      )}
 
       {verstoesse.length === 0 && hoheFindings.length === 0 ? (
         <p className="mt-3 text-sm text-ink-muted">Keine Grenz-Verstöße oder hoch eingestuften Kritiker-Findings.</p>

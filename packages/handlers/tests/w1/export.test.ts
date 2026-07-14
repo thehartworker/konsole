@@ -1,9 +1,11 @@
 // Issue #45: die Export-Render-Funktion produziert für eine Test-
-// Pressemitteilung erwartete PDF/DOCX/Plain-Text-Ausgaben. Snapshot für
-// Plain-Text, für PDF/DOCX Inhalts-Assertion statt Byte-Vergleich (die
-// erzeugten Bytes hängen von Bibliotheks-internen Details wie Zeitstempeln
-// ab, siehe pdf-parse/jszip-Nutzung unten nur in Tests, nicht in
-// Produktionscode).
+// Pressemitteilung erwartete PDF/DOCX/Plain-Text-Ausgaben. Für alle drei
+// Formate Inhalts-Assertion statt Byte-/Snapshot-Vergleich (die erzeugten
+// Bytes hängen von Bibliotheks-internen Details wie Zeitstempeln ab, ein
+// Snapshot der ganzen Ausgabe wäre außerdem ein Verstoß gegen AGENTS.md
+// §3.3 -- siehe Issue #47 / docs/decisions/2026-07-14_konsolen-setup-
+// haertung.md, Baustein F. pdf-parse/jszip-Nutzung unten nur in Tests,
+// nicht in Produktionscode.
 
 import { describe, expect, it } from 'vitest';
 import pdfParse from 'pdf-parse';
@@ -47,8 +49,29 @@ describe('pressemitteilungSegmente', () => {
 });
 
 describe('renderPressemitteilungText', () => {
-  it('produziert den erwarteten Plain-Text (Snapshot)', () => {
-    expect(renderPressemitteilungText(GUTER_DRAFT)).toMatchSnapshot();
+  // Issue #47: der ursprüngliche Snapshot-Test wurde nie committet (siehe
+  // docs/decisions/2026-07-14_konsolen-setup-haertung.md, Baustein F) --
+  // jeder Lauf ohne vorhandene __snapshots__-Datei "bestand" automatisch,
+  // was AGENTS.md §3.3 ("Kein Snapshot-Testing für LLM-Outputs") ohnehin
+  // widerspricht. Ersetzt durch einen inhaltsbasierten Reihenfolge-Test.
+  it('enthält alle Segmente in Dokument-Reihenfolge, getrennt durch Leerzeilen', () => {
+    const text = renderPressemitteilungText(GUTER_DRAFT);
+    const positionen = [
+      text.indexOf(GUTER_DRAFT.headline),
+      text.indexOf(GUTER_DRAFT.sub_headline!),
+      text.indexOf(GUTER_DRAFT.ort_datum),
+      text.indexOf(GUTER_DRAFT.lead_absatz),
+      text.indexOf(GUTER_DRAFT.ausfuehrung_absaetze[0]),
+      text.indexOf(GUTER_DRAFT.ausfuehrung_absaetze[1]),
+      text.indexOf(GUTER_DRAFT.zitat!.text),
+      text.indexOf(GUTER_DRAFT.boilerplate),
+      text.indexOf(GUTER_DRAFT.kontakt_fusszeile),
+    ];
+    for (const position of positionen) expect(position).toBeGreaterThan(-1);
+    for (let i = 1; i < positionen.length; i++) {
+      expect(positionen[i]).toBeGreaterThan(positionen[i - 1]);
+    }
+    expect(text).toContain('\n\n');
   });
 
   it('lässt das Zitat-Segment weg, wenn zitat=null, ohne die übrigen Segmente zu verändern', () => {
@@ -60,15 +83,22 @@ describe('renderPressemitteilungText', () => {
 });
 
 describe('renderPressemitteilungPdf', () => {
+  // Issue #47: pdf-parse liefert Zeilenumbrüche, sobald eine Zeile im
+  // Rendering umbricht (lange Headlines) oder Blocksatz zusätzliche
+  // Zwischenräume erzeugt -- der Text bleibt inhaltlich korrekt, ein
+  // striktes toContain scheitert aber an dem reinen Whitespace-Rauschen.
+  // Whitespace wird deshalb vor der Prüfung kollabiert, siehe
+  // docs/decisions/2026-07-14_konsolen-setup-haertung.md, Baustein F.
   it('enthält headline, lead_absatz, Zitat-Text und Kontakt-Fußzeile als lesbaren Text', async () => {
     const buffer = await renderPressemitteilungPdf(GUTER_DRAFT);
     const { text } = await pdfParse(buffer);
+    const normalisiert = text.replace(/\s+/g, ' ').trim();
 
-    expect(text).toContain(GUTER_DRAFT.headline);
-    expect(text).toContain(GUTER_DRAFT.lead_absatz);
-    expect(text).toContain(GUTER_DRAFT.zitat!.text);
-    expect(text).toContain(GUTER_DRAFT.zitat!.sprecher_name);
-    expect(text).toContain(GUTER_DRAFT.kontakt_fusszeile);
+    expect(normalisiert).toContain(GUTER_DRAFT.headline);
+    expect(normalisiert).toContain(GUTER_DRAFT.lead_absatz);
+    expect(normalisiert).toContain(GUTER_DRAFT.zitat!.text);
+    expect(normalisiert).toContain(GUTER_DRAFT.zitat!.sprecher_name);
+    expect(normalisiert).toContain(GUTER_DRAFT.kontakt_fusszeile);
   });
 
   it('erzeugt gültige PDF-Bytes (Magic Header %PDF)', async () => {

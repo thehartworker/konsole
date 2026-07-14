@@ -71,4 +71,38 @@ describe("CompliancePanel", () => {
     expect(screen.getAllByText(/Shadow-Mode aktiv/).length).toBeGreaterThan(0);
     expect(screen.getByText(/Keine Grenz-Verstöße oder hoch eingestuften Kritiker-Findings\./)).toBeTruthy();
   });
+
+  // Issue #47: ein unvollständiges Handler-Ergebnis (fehlendes
+  // grenz_pruefung_ergebnis bzw. kritiker_findings) darf das Panel nicht
+  // zum Absturz bringen ("Cannot read properties of undefined").
+  it("crasht nicht wenn grenz_pruefung_ergebnis fehlt, sondern zeigt einen Hinweis", () => {
+    const OHNE_GRENZ_PRUEFUNG: HandlerAufrufZeile = {
+      ...W1_MIT_VERSTOSS,
+      ergebnis: {
+        ...(W1_MIT_VERSTOSS.ergebnis as Record<string, unknown>),
+        grenz_pruefung_ergebnis: undefined,
+      },
+    };
+
+    expect(() => render(<CompliancePanel handlerAufrufe={[OHNE_GRENZ_PRUEFUNG]} />)).not.toThrow();
+    expect(screen.getByText(/Compliance-Prüfung nicht verfügbar/)).toBeTruthy();
+    // Das hoch eingestufte Kritiker-Finding bleibt trotzdem sichtbar, weil
+    // kritiker_findings unabhängig von grenz_pruefung_ergebnis vorhanden ist.
+    expect(screen.getByText(/Unbelegte Wirkaussage im Text\./)).toBeTruthy();
+  });
+
+  it("crasht nicht wenn kritiker_findings fehlt, behandelt es als leere Liste", () => {
+    const OHNE_KRITIKER_FINDINGS: HandlerAufrufZeile = {
+      ...W1_MIT_VERSTOSS,
+      ergebnis: {
+        ...(W1_MIT_VERSTOSS.ergebnis as Record<string, unknown>),
+        kritiker_findings: undefined,
+      },
+    };
+
+    expect(() => render(<CompliancePanel handlerAufrufe={[OHNE_KRITIKER_FINDINGS]} />)).not.toThrow();
+    expect(screen.getByText(/Verbotene Aussage laut Kundenprofil-Grenze/)).toBeTruthy();
+    expect(screen.queryByText(/Unbelegte Wirkaussage im Text\./)).toBeNull();
+    expect(screen.queryByText(/Compliance-Prüfung nicht verfügbar/)).toBeNull();
+  });
 });
