@@ -76,6 +76,13 @@ export {
 } from './kunden-quelldokumente.js';
 
 export {
+  SupabaseHandlerAufrufRepository,
+  ErgebnisBearbeitetValidierungsFehler,
+  type HandlerAufrufRepository,
+  type ErgebnisBearbeitenResultat,
+} from './handler-aufruf.js';
+
+export {
   extrahiereUndPersistiereProfil,
   verarbeiteDokumentUndPersistiereProfil,
   verarbeiteWebsiteUndPersistiereProfil,
