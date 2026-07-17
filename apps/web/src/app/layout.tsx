@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import type { CSSProperties } from "react";
 import { DEFAULT_THEME, themeAlsCssVariablen } from "@/lib/theme";
+import { KonsolenNav } from "./nav";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -15,7 +16,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="de" style={themeAlsCssVariablen(DEFAULT_THEME) as CSSProperties}>
-      <body className="min-h-screen bg-surface-subtle text-ink antialiased">{children}</body>
+      <body className="min-h-screen bg-surface-subtle text-ink antialiased">
+        <KonsolenNav />
+        {children}
+      </body>
     </html>
   );
 }

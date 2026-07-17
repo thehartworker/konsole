@@ -1,16 +1,24 @@
 -- Test-Fall 13 (Issue #35, Kundenprofil-Fundament): kunden_profil und alle
 -- neun Listen-Tabellen sind RLS-konform, gleiches Muster wie pruefregeln
 -- (Test 12)/llm_nutzung (Test 11): Mandanten-Trennung über
--- current_agentur_id(), Kunden-Zuweisungs-Grenze für nicht-chef-Rollen,
--- keine Schreibrechte für authentifizierte Sessions (nur Service-Role).
+-- current_agentur_id(), Kunden-Zuweisungs-Grenze für nicht-chef-Rollen.
 --
 -- Läuft zunächst als Tabellen-Owner (postgres, RLS-Bypass) für die
 -- Fixture-Inserts, analog zu 003_fixtures.sql/12_pruefregeln_rls.test.sql.
 -- Je eine Zeile pro Tabelle für Kunde A1, Kunde A2 (beide Agentur A,
 -- editor_a1 nur A1 zugewiesen) und Kunde B1 (Agentur B).
+--
+-- Schreibrechte (INSERT/UPDATE) kamen mit Issue #50 (Konsole Block 3,
+-- Migration 20260717120000_kundenprofil_schreibrechte.sql) dazu -- vorher
+-- schrieb ausschließlich die Service-Role, siehe
+-- docs/decisions/2026-07-17_konsole-block3-profil-editor.md, Abschnitt
+-- "Fünfte Entscheidung". Die frühere Fassung dieses Tests behauptete hier
+-- "keine Schreibrechte für authentifizierte Sessions"; das im Detail
+-- geprüfte Schreibverhalten lebt jetzt in 19_kundenprofil_schreibrechte.test.sql,
+-- dieser Test bleibt auf Lese-Mandantentrennung fokussiert.
 
 BEGIN;
-SELECT plan(30);
+SELECT plan(27);
 
 -- ============================================================
 -- kunden_profil (Kern-Tabelle, 1:1). Bewusst NUR für Kunde A1 und Kunde B1
@@ -129,54 +137,21 @@ SELECT is((SELECT count(*) FROM kunden_praezedenzfaelle)::int, 1, 'editor_a1 sie
 SELECT is((SELECT count(*) FROM kunden_medien_kontext)::int, 1, 'editor_a1 sieht genau die 1 kunden_medien_kontext-Zeile des zugewiesenen Kunden A1');
 
 -- ============================================================
--- Nur Service-Role schreibt: keine INSERT/UPDATE-Policy für Endnutzer-Rollen
+-- Schreibrechte im Detail (zugewiesene vs. nicht-zugewiesene Rollen, fremde
+-- Agentur) leben in 19_kundenprofil_schreibrechte.test.sql. Hier nur eine
+-- Rauchprobe, dass chef_a (eigene Agentur) tatsächlich schreiben kann --
+-- als Beweis, dass die neue Migration angewendet wurde.
 -- ============================================================
 
 SELECT tests.authenticate_as('a0000000-0000-0000-0000-000000000101'); -- chef_a
 
--- kunde_id = Kunde A2 (keine bestehende kunden_profil-Zeile, siehe oben),
--- damit der erwartete Fehler eindeutig die RLS-Policy ist, nicht ein
--- Unique-Conflict auf kunde_id.
-SELECT throws_like(
-  $$ INSERT INTO kunden_profil (kunde_id, positionierung) VALUES ('a0000000-0000-0000-0000-000000000012', 'Manipuliert') $$,
-  '%row-level security policy%',
-  'chef_a kann KEINE kunden_profil-Zeile per authentifizierter Session anlegen (nur Service-Role schreibt, kein Editier-UI in Ebene 1+2)'
+-- kunde_id = Kunde A2 (keine bestehende kunden_profil-Zeile, siehe oben).
+SELECT lives_ok(
+  $$ INSERT INTO kunden_profil (kunde_id, positionierung) VALUES ('a0000000-0000-0000-0000-000000000012', 'Von chef_a angelegt') $$,
+  'chef_a kann eine kunden_profil-Zeile für Kunde A2 (eigene Agentur) per authentifizierter Session anlegen (Migration 20260717120000)'
 );
 
--- Postgres wirft hier KEINEN Fehler (anders als beim INSERT oben): ohne
--- UPDATE-Policy gilt ein impliziter "USING (false)", die Zeile wird für das
--- UPDATE schlicht nicht ausgewählt (0 betroffene Zeilen), analog zu
--- 05_reader_keine_schreibrechte.test.sql. Data-modifying CTE als
--- Sub-Argument ist verboten, deshalb eigene oberste Anweisung mit
--- RETURNING in eine TEMP-Tabelle.
-WITH versuch AS (
-  UPDATE kunden_profil SET positionierung = 'Manipuliert'
-  WHERE id = 'a0000000-0000-0000-0000-000000013001'
-  RETURNING 1
-)
-SELECT count(*) AS c INTO TEMP t_test13_update_versuch FROM versuch;
-
-SELECT is(
-  (SELECT c FROM t_test13_update_versuch)::int,
-  0,
-  'ein UPDATE-Versuch von chef_a auf kunden_profil betrifft 0 Zeilen (keine Schreib-Policy, nur Service-Role schreibt)'
-);
-
-SELECT tests.clear_authentication(); -- zurück auf Owner-Ebene, um den Originalzustand zu prüfen
-
-SELECT is(
-  (SELECT positionierung FROM kunden_profil WHERE id = 'a0000000-0000-0000-0000-000000013001'),
-  'Positionierung Kunde A1',
-  'kunden_profil bleibt nach dem UPDATE-Versuch von chef_a unverändert (Original-Positionierung, nicht der manipulierte Wert)'
-);
-
-SELECT tests.authenticate_as('a0000000-0000-0000-0000-000000000101'); -- chef_a, für den folgenden INSERT-Versuch
-
-SELECT throws_like(
-  $$ INSERT INTO kunden_grenzen (kunde_id, typ, inhalt) VALUES ('a0000000-0000-0000-0000-000000000011', 'no_go_thema', 'Manipuliert') $$,
-  '%row-level security policy%',
-  'chef_a kann KEINE kunden_grenzen-Zeile per authentifizierter Session anlegen (nur Service-Role schreibt)'
-);
+SELECT tests.clear_authentication();
 
 SELECT * FROM finish();
 ROLLBACK;

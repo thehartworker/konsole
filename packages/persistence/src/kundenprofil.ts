@@ -62,6 +62,14 @@ export interface KundenBoilerplateZeile {
   stand: string | null;
   /** Technische Herkunft eines abgeleiteten Vorschlags, siehe kundenprofil-ki-befuellung-Decision. Optional: bestehende, vor PR 2 geschriebene Zeilen kennen die Spalte nicht. */
   herkunft?: string | null;
+  /**
+   * DB-Spalte existiert auf allen neun Kundenprofil-Listen-Tabellen
+   * (timestamptz NOT NULL DEFAULT now()), hier bewusst optional deklariert,
+   * um bestehende Test-Fixtures nicht zu brechen -- Issue #50 (Konsole
+   * Block 3) braucht sie für die Provenance-Anzeige ("...als Näherung fürs
+   * Datum", siehe apps/web/src/lib/kundenprofil-provenance.ts).
+   */
+  updated_at?: string;
 }
 
 export interface KundenKennzahlenZeile {
@@ -73,6 +81,14 @@ export interface KundenKennzahlenZeile {
   quelle: string;
   status: KundenProfilElementStatus;
   herkunft?: string | null;
+  /**
+   * DB-Spalte existiert auf allen neun Kundenprofil-Listen-Tabellen
+   * (timestamptz NOT NULL DEFAULT now()), hier bewusst optional deklariert,
+   * um bestehende Test-Fixtures nicht zu brechen -- Issue #50 (Konsole
+   * Block 3) braucht sie für die Provenance-Anzeige ("...als Näherung fürs
+   * Datum", siehe apps/web/src/lib/kundenprofil-provenance.ts).
+   */
+  updated_at?: string;
 }
 
 export interface KundenSprecherZeile {
@@ -84,6 +100,14 @@ export interface KundenSprecherZeile {
   zitat_freigabe: boolean;
   status: KundenProfilElementStatus;
   herkunft?: string | null;
+  /**
+   * DB-Spalte existiert auf allen neun Kundenprofil-Listen-Tabellen
+   * (timestamptz NOT NULL DEFAULT now()), hier bewusst optional deklariert,
+   * um bestehende Test-Fixtures nicht zu brechen -- Issue #50 (Konsole
+   * Block 3) braucht sie für die Provenance-Anzeige ("...als Näherung fürs
+   * Datum", siehe apps/web/src/lib/kundenprofil-provenance.ts).
+   */
+  updated_at?: string;
 }
 
 export interface KundenKernbotschaftZeile {
@@ -93,6 +117,14 @@ export interface KundenKernbotschaftZeile {
   reihenfolge: number;
   status: KundenProfilElementStatus;
   herkunft?: string | null;
+  /**
+   * DB-Spalte existiert auf allen neun Kundenprofil-Listen-Tabellen
+   * (timestamptz NOT NULL DEFAULT now()), hier bewusst optional deklariert,
+   * um bestehende Test-Fixtures nicht zu brechen -- Issue #50 (Konsole
+   * Block 3) braucht sie für die Provenance-Anzeige ("...als Näherung fürs
+   * Datum", siehe apps/web/src/lib/kundenprofil-provenance.ts).
+   */
+  updated_at?: string;
 }
 
 export interface KundenThemaZeile {
@@ -104,6 +136,14 @@ export interface KundenThemaZeile {
   positionierung_vorhanden: boolean;
   status: KundenProfilElementStatus;
   herkunft?: string | null;
+  /**
+   * DB-Spalte existiert auf allen neun Kundenprofil-Listen-Tabellen
+   * (timestamptz NOT NULL DEFAULT now()), hier bewusst optional deklariert,
+   * um bestehende Test-Fixtures nicht zu brechen -- Issue #50 (Konsole
+   * Block 3) braucht sie für die Provenance-Anzeige ("...als Näherung fürs
+   * Datum", siehe apps/web/src/lib/kundenprofil-provenance.ts).
+   */
+  updated_at?: string;
 }
 
 export type KundenGrenzenTyp =
@@ -122,6 +162,14 @@ export interface KundenGrenzeZeile {
   ist_deterministisch_erzwungen: boolean;
   status: KundenProfilElementStatus;
   herkunft?: string | null;
+  /**
+   * DB-Spalte existiert auf allen neun Kundenprofil-Listen-Tabellen
+   * (timestamptz NOT NULL DEFAULT now()), hier bewusst optional deklariert,
+   * um bestehende Test-Fixtures nicht zu brechen -- Issue #50 (Konsole
+   * Block 3) braucht sie für die Provenance-Anzeige ("...als Näherung fürs
+   * Datum", siehe apps/web/src/lib/kundenprofil-provenance.ts).
+   */
+  updated_at?: string;
 }
 
 export interface KundenFreigabekettenZeile {
@@ -132,6 +180,14 @@ export interface KundenFreigabekettenZeile {
   bedingung: string | null;
   status: KundenProfilElementStatus;
   herkunft?: string | null;
+  /**
+   * DB-Spalte existiert auf allen neun Kundenprofil-Listen-Tabellen
+   * (timestamptz NOT NULL DEFAULT now()), hier bewusst optional deklariert,
+   * um bestehende Test-Fixtures nicht zu brechen -- Issue #50 (Konsole
+   * Block 3) braucht sie für die Provenance-Anzeige ("...als Näherung fürs
+   * Datum", siehe apps/web/src/lib/kundenprofil-provenance.ts).
+   */
+  updated_at?: string;
 }
 
 export interface KundenPraezedenzfallZeile {
@@ -143,6 +199,14 @@ export interface KundenPraezedenzfallZeile {
   freigegeben_am: string | null;
   status: KundenProfilElementStatus;
   herkunft?: string | null;
+  /**
+   * DB-Spalte existiert auf allen neun Kundenprofil-Listen-Tabellen
+   * (timestamptz NOT NULL DEFAULT now()), hier bewusst optional deklariert,
+   * um bestehende Test-Fixtures nicht zu brechen -- Issue #50 (Konsole
+   * Block 3) braucht sie für die Provenance-Anzeige ("...als Näherung fürs
+   * Datum", siehe apps/web/src/lib/kundenprofil-provenance.ts).
+   */
+  updated_at?: string;
 }
 
 export interface KundenMedienKontextZeile {
@@ -154,6 +218,14 @@ export interface KundenMedienKontextZeile {
   prioritaet: 'hoch' | 'mittel' | 'niedrig' | null;
   status: KundenProfilElementStatus;
   herkunft?: string | null;
+  /**
+   * DB-Spalte existiert auf allen neun Kundenprofil-Listen-Tabellen
+   * (timestamptz NOT NULL DEFAULT now()), hier bewusst optional deklariert,
+   * um bestehende Test-Fixtures nicht zu brechen -- Issue #50 (Konsole
+   * Block 3) braucht sie für die Provenance-Anzeige ("...als Näherung fürs
+   * Datum", siehe apps/web/src/lib/kundenprofil-provenance.ts).
+   */
+  updated_at?: string;
 }
 
 export interface KundenProfil {
@@ -288,6 +360,41 @@ export interface KundenProfilRepository {
    * Kandidaten desselben Aufrufs (aehnlichkeit.ts).
    */
   listenElementeVorschlagen(eingabe: KundenProfilListenVorschlagEingabe): Promise<KundenProfilVorschlagResultat>;
+
+  /**
+   * Manuelles Speichern EINES Kern-Feldwerts durch die Beraterin (Issue #50,
+   * Aufgabe F, speichereKopfFeld). Im Unterschied zu kernFelderVorschlagen
+   * gilt HIER keine Nicht-Überschreiben-Regel -- die Beraterin bearbeitet
+   * bewusst, ein bestehender 'freigegeben'-Status darf überschrieben werden.
+   * Auch für die "Vorschlag übernehmen"-Aktion genutzt (Aufgabe C): dort mit
+   * status='abgeleitet' und wert direkt aus der Vorschlags-Karte, EIN Feld
+   * pro Aufruf statt des Batch-Schreibpfads von kernFelderVorschlagen, siehe
+   * docs/decisions/2026-07-17_konsole-block3-profil-editor.md, Abschnitt 3.
+   * quelle bleibt hier bewusst null (kein Freitext im Kategorie-Feld, siehe
+   * Decision Abschnitt 4) -- stand wird auf heute gesetzt.
+   */
+  kernFeldManuellSpeichern(
+    kundeId: string,
+    feldname: string,
+    wert: unknown,
+    status: KundenProfilElementStatus,
+  ): Promise<void>;
+
+  /**
+   * Manuelles Anlegen (kein zeile.id) oder Aktualisieren (zeile.id gesetzt)
+   * einer einzelnen Listen-Zeile (Issue #50, Aufgabe F,
+   * speichereListenzeile). Auch für "Vorschlag übernehmen" (Aufgabe C)
+   * genutzt, dort ohne zeile.id (immer ein Insert) und status='abgeleitet'.
+   */
+  listenzeileManuellSpeichern(
+    tabelle: KundenProfilListenTabelle,
+    kundeId: string,
+    zeile: Record<string, unknown> & { id?: string },
+    status: KundenProfilElementStatus,
+  ): Promise<{ id: string }>;
+
+  /** Soft-Delete einer Listen-Zeile (Issue #50, Aufgabe F, entferneListenzeile). */
+  listenzeileEntfernen(tabelle: KundenProfilListenTabelle, id: string, kundeId: string): Promise<void>;
 }
 
 function pruefeFehler(fehler: { message: string } | null, kontext: string): void {
@@ -627,6 +734,74 @@ export class SupabaseKundenProfilRepository implements KundenProfilRepository {
     pruefeFehler(insertFehler, `listenElementeVorschlagen(${tabelle}, insert)`);
 
     return { eingefuegt: einzufuegen.length, dublettenUebersprungen };
+  }
+
+  async kernFeldManuellSpeichern(
+    kundeId: string,
+    feldname: string,
+    wert: unknown,
+    status: KundenProfilElementStatus,
+  ): Promise<void> {
+    const { data: bestehend, error } = await this.client
+      .from('kunden_profil')
+      .select('id, feld_status')
+      .eq('kunde_id', kundeId)
+      .is('deleted_at', null)
+      .maybeSingle();
+    pruefeFehler(error, 'kernFeldManuellSpeichern(laden)');
+
+    const bestehenderFeldStatus = (bestehend?.feld_status ?? {}) as KundenProfilFeldStatus;
+    const heute = new Date().toISOString().slice(0, 10);
+    const neuerFeldStatus: KundenProfilFeldStatus = {
+      ...bestehenderFeldStatus,
+      [feldname]: { status, stand: heute, quelle: null },
+    };
+
+    if (!bestehend) {
+      const { error: insertFehler } = await this.client
+        .from('kunden_profil')
+        .insert({ kunde_id: kundeId, [feldname]: wert, feld_status: neuerFeldStatus });
+      pruefeFehler(insertFehler, 'kernFeldManuellSpeichern(insert)');
+      return;
+    }
+
+    const { error: updateFehler } = await this.client
+      .from('kunden_profil')
+      .update({ [feldname]: wert, feld_status: neuerFeldStatus })
+      .eq('id', bestehend.id);
+    pruefeFehler(updateFehler, 'kernFeldManuellSpeichern(update)');
+  }
+
+  async listenzeileManuellSpeichern(
+    tabelle: KundenProfilListenTabelle,
+    kundeId: string,
+    zeile: Record<string, unknown> & { id?: string },
+    status: KundenProfilElementStatus,
+  ): Promise<{ id: string }> {
+    const { id, ...rest } = zeile;
+
+    if (id) {
+      const { error: updateFehler } = await this.client.from(tabelle).update({ ...rest, status }).eq('id', id).eq('kunde_id', kundeId);
+      pruefeFehler(updateFehler, `listenzeileManuellSpeichern(${tabelle}, update)`);
+      return { id };
+    }
+
+    const { data, error: insertFehler } = await this.client
+      .from(tabelle)
+      .insert({ ...rest, kunde_id: kundeId, status })
+      .select('id')
+      .single();
+    pruefeFehler(insertFehler, `listenzeileManuellSpeichern(${tabelle}, insert)`);
+    return { id: (data as { id: string }).id };
+  }
+
+  async listenzeileEntfernen(tabelle: KundenProfilListenTabelle, id: string, kundeId: string): Promise<void> {
+    const { error } = await this.client
+      .from(tabelle)
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', id)
+      .eq('kunde_id', kundeId);
+    pruefeFehler(error, `listenzeileEntfernen(${tabelle})`);
   }
 }
 
