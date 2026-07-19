@@ -72,9 +72,11 @@ Externes Review (Postgres 16 + `pnpm --filter web build` + `pnpm -r typecheck`) 
 
 **Verworfene Alternative:** Provider per lazy `await import()` verstecken. Hätte das Symptom gefixt, ohne die eigentliche Server/Client-Trennung zu ziehen — beim nächsten neuen Provider oder Client-Import wäre derselbe Bug wiedergekommen. Der Sub-Export-Fix ist strukturell, nicht symptomatisch.
 
-### H.2: Type-Guard für `VorschlagZielKern | VorschlagZielListe` — geprüft, kein Fix nötig
+### H.2: Type-Guard für `VorschlagZielKern | VorschlagZielListe` — Nachtrag, doch ein Fix nötig
 
-Der externe Review vermutete einen fehlenden Discriminant-Check beim Zugriff auf `.feldname` in `profil-editor.tsx`. Bei der Umsetzung von Aufgabe H zeigt sich: die Union hat bereits einen Diskriminator (`ziel.art: "kern" | "liste"`), und jede Zugriffsstelle in `profil-editor.tsx` sowie `actions.ts` prüft `ziel.art === "kern"`, bevor sie `.feldname` liest — TypeScripts Discriminated-Union-Narrowing greift hier bereits korrekt. Es wurde keine Code-Änderung vorgenommen; vermutlich bezog sich der externe Befund auf einen früheren Zwischenstand des Branches.
+Die erste Einschätzung ("Diskriminator ist schon da, kein Fix nötig") war für die meisten Zugriffsstellen richtig, aber nicht vollständig: `onUebernommen` in `profil-editor.tsx` prüft `vorschlag.ziel.art === "kern"` und liest `vorschlag.ziel.feldname` direkt darunter — aber innerhalb des Callback-Arguments von `setKernUebernommen((bisherig) => ({ ..., [vorschlag.ziel.feldname]: ... }))`. TypeScripts Control-Flow-Narrowing überträgt sich nicht über die Grenze eines verschachtelten Funktionsausdrucks: der Callback könnte theoretisch später aufgerufen werden, nachdem sich `vorschlag` geändert hat, deshalb verwirft TypeScript die Verengung aus dem äußeren `if` für Zugriffe innerhalb des Callbacks. `onUebernahmeRueckgaengig` (dieselbe Datei, wenige Zeilen darunter) hatte dieses Muster bereits korrekt: `feldname`/`tabelle` werden vor dem Callback in eine `const` gezogen.
+
+**Fix:** In `onUebernommen` `feldname` ebenfalls vor dem Callback in eine lokale `const` gezogen (analog zu `tabelle` im Listen-Zweig direkt darunter, der bereits korrekt war). Alle übrigen Zugriffsstellen (`actions.ts`, restlicher `profil-editor.tsx`) greifen synchron innerhalb desselben `if`-Zweigs ohne verschachtelte Funktionsgrenze zu — dort bleibt die Verengung gültig, kein weiterer Fix nötig.
 
 ### H.3: pgTAP-Test 19, Assertion 4 zu strikt
 

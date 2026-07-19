@@ -74,10 +74,11 @@ export function ProfilEditor({ kundeId, initialProfil }: { kundeId: string; init
 
   function onUebernommen(vorschlag: Vorschlag, eingefuegteId?: string) {
     if (vorschlag.ziel.art === "kern") {
+      const feldname = vorschlag.ziel.feldname;
       const status: KundenProfilElementStatus = "abgeleitet";
       setKernUebernommen((bisherig) => ({
         ...bisherig,
-        [vorschlag.ziel.feldname]: {
+        [feldname]: {
           wert: vorschlag.wertAnzeige,
           feldStatus: { status, quelle: vorschlag.quelle, stand: vorschlag.stand },
         },
