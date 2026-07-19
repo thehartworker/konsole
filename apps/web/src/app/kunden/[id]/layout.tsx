@@ -1,11 +1,12 @@
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ladeKunde } from "@/lib/kunden";
+import { KundenNav } from "./components/kunden-nav";
 
-// Kunden-Detail-Container (Issue #50, Aufgabe A): in v1 nur der Sub-Tab
-// "Profil". Vorgangs-Historie/Kontakte/etc. sind vorbereitet (Tab-Leiste
-// unten ist so gebaut, dass ein weiterer Eintrag nur eine weitere Zeile
-// braucht), aber bewusst NICHT gebaut (Scope-Grenze aus dem Issue).
+// Kunden-Detail-Container (Issue #50, Aufgabe A; Issue #52, Aufgabe D fügt
+// den "Mail-Anbindung"-Tab hinzu). Vorgangs-Historie/Kontakte/etc. sind
+// vorbereitet (KundenNav ist so gebaut, dass ein weiterer Eintrag nur eine
+// weitere Zeile braucht), aber bewusst NICHT gebaut (Scope-Grenze).
 export default async function KundeDetailLayout({
   children,
   params,
@@ -32,11 +33,7 @@ export default async function KundeDetailLayout({
     <main className="mx-auto max-w-4xl px-4 py-12">
       <h1 className="text-lg font-semibold text-ink">{kunde.name}</h1>
 
-      <nav aria-label="Kunden-Bereiche" className="mt-4 flex gap-4 border-b border-border text-sm">
-        <span className="border-b-2 border-primary px-1 pb-2 font-medium text-ink" aria-current="page">
-          Profil
-        </span>
-      </nav>
+      <KundenNav kundeId={id} />
 
       <div className="mt-6">{children}</div>
     </main>

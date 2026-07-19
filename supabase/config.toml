@@ -69,3 +69,23 @@ allowed_mime_types = [
   "text/plain",
   "text/html",
 ]
+
+# mail_anhaenge: Anhänge eingehender E-Mails (Issue #52, E-Mail-Kanal
+# Aufgabe G), separater Bucket weil semantisch anderer Zweck als
+# kunden_quelldokumente (Ingest-Rohmaterial statt bewusst hochgeladenes
+# Profil-Quellmaterial), siehe supabase/storage/mail_anhaenge_bucket.sql für
+# die storage.objects-RLS-Policies (dieser CLI-Block deckt sie NICHT ab).
+[storage.buckets.mail_anhaenge]
+public = false
+file_size_limit = "25MiB"
+allowed_mime_types = [
+  "application/pdf",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/msword",
+  "text/plain",
+  "text/html",
+  "text/csv",
+  "image/jpeg",
+  "image/png",
+  "image/gif",
+]

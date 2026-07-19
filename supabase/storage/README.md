@@ -32,3 +32,25 @@ select policyname from pg_policies where schemaname = 'storage' and tablename = 
 ```
 
 Die zweite Abfrage sollte `kunden_quelldokumente_service_role_lesen` und `kunden_quelldokumente_service_role_schreiben` zurückgeben. Fehlen sie, ist Schritt 2 noch offen. Schlägt ein Dokument-Upload aus der Konsole mit einem Storage-Fehler fehl, ist das der erste Verdacht: Bucket existiert (Schritt 1), aber die Policies fehlen (Schritt 2), oder umgekehrt.
+
+## Zweiter Bucket: `mail_anhaenge` (Issue #52, E-Mail-Kanal Aufgabe G)
+
+Gleicher Ablauf wie oben, mit folgenden Abweichungen:
+
+1. Supabase-Dashboard → **Storage** → **Create bucket**.
+2. Name: `mail_anhaenge` (exakt, kleingeschrieben, referenziert von `packages/mail-ingest/src/anhaenge.ts`).
+3. **Public bucket**: AUS lassen (Private).
+4. **File size limit**: 25 MiB.
+5. **Allowed MIME types**: `application/pdf`, `application/vnd.openxmlformats-officedocument.wordprocessingml.document`, `application/msword`, `text/plain`, `text/html`, `text/csv`, `image/jpeg`, `image/png`, `image/gif` (siehe `supabase/config.toml`, Abschnitt `[storage.buckets.mail_anhaenge]`).
+6. **Save**.
+7. `supabase/storage/mail_anhaenge_bucket.sql` im SQL-Editor ausführen.
+
+Anders als `kunden_quelldokumente` bekommt dieser Bucket zusätzlich eine Lese-Policy für Beraterinnen (nicht nur Service-Role), weil Anhänge Teil der normalen Vorgangs-Ansicht sind. Die Pfad-Konvention (`<agentur_id>/<kunde_id>/<vorgang_id>/<anhang_id>-<dateiname>`) ist dafür Voraussetzung — der Ingest-Dienst muss beim Hochladen exakt dieses Schema einhalten, siehe Kommentar in der SQL-Datei.
+
+Prüfen:
+
+```sql
+select policyname from pg_policies where schemaname = 'storage' and tablename = 'objects' and policyname like 'mail_anhaenge_%';
+```
+
+Sollte drei Policies zurückgeben: `mail_anhaenge_service_role_lesen`, `mail_anhaenge_service_role_schreiben`, `mail_anhaenge_beraterin_lesen`.

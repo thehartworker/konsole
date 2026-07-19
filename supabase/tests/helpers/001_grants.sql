@@ -22,6 +22,20 @@ GRANT SELECT ON ALL TABLES IN SCHEMA public TO anon;
 
 GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO authenticated, service_role;
 
+-- kunden_mail_anbindungen.imap_passwort_verschluesselt (Issue #52, Aufgabe
+-- A, siehe supabase/migrations/20260719140000_email_kanal.sql): einzige
+-- column-level Einschränkung in dieser Datei, weil der pauschale
+-- "GRANT SELECT ON ALL TABLES"-Schritt oben sonst das gezielte REVOKE aus
+-- der Migration in dieser Test-Umgebung wieder aufheben würde (in einer
+-- echten Supabase-Instanz gibt es diesen pauschalen Schritt nicht, dort
+-- gilt die Migration unverändert).
+REVOKE SELECT ON kunden_mail_anbindungen FROM authenticated;
+GRANT SELECT (
+  id, kunde_id, agentur_id, anbindungs_typ, konsolen_adresse,
+  imap_host, imap_port, imap_benutzername, imap_ordner, verarbeitet_ordner,
+  aktiv, angelegt_at, updated_at, deleted_at
+) ON kunden_mail_anbindungen TO authenticated;
+
 -- pgTAP installiert seine Assertion-Funktionen (plan(), ok(), is(), ...) in
 -- das Schema, das beim CREATE EXTENSION aktiv ist (hier: public, siehe
 -- CI-Job). Ohne EXECUTE-Grant könnte die Rolle "authenticated" die

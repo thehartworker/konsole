@@ -1,0 +1,38 @@
+[Unit]
+Description=Konsole Mail-Ingest (E-Mail-Kanal, Issue #52)
+Documentation=https://github.com/thehartworker/konsole/blob/main/docs/ops/mail-ingest-deployment.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=konsole
+Group=konsole
+WorkingDirectory=/opt/konsole/apps/mail-ingest
+EnvironmentFile=/etc/konsole/mail-ingest.env
+ExecStart=/usr/bin/node --import tsx src/main.ts
+Restart=always
+RestartSec=5
+
+# Graceful Shutdown (Issue #52, Aufgabe C): main.ts fängt SIGTERM/SIGINT ab
+# und schließt alle IMAP-Verbindungen sauber, bevor der Prozess beendet.
+# TimeoutStopSec gibt dem Node-Prozess genug Zeit dafür, bevor systemd hart
+# mit SIGKILL nachhilft (kein Verlust einer teil-verarbeiteten Mail).
+KillSignal=SIGTERM
+TimeoutStopSec=30
+
+# Least-Privilege-Härtung (v1, siehe docs/ops/mail-ingest-deployment.md für
+# den vollständigen Setup-Ablauf inklusive Erstellung des "konsole"-Users).
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/opt/konsole/apps/mail-ingest
+
+# journald übernimmt das strukturierte JSON-Logging aus src/logger.ts
+# (pino) automatisch über stdout -- kein separates Logfile nötig.
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=konsole-mail-ingest
+
+[Install]
+WantedBy=multi-user.target
