@@ -339,6 +339,48 @@ export class FakeKundenProfilRepository implements KundenProfilRepository {
     }
   }
 
+  async kernFeldManuellSpeichern(
+    kundeId: string,
+    feldname: string,
+    wert: unknown,
+    status: KundenProfilElementStatus,
+  ): Promise<void> {
+    const bestehend = this.kern.get(kundeId) ?? defaultKern(kundeId);
+    const heute = new Date().toISOString().slice(0, 10);
+    this.kern.set(kundeId, {
+      ...bestehend,
+      [feldname]: wert,
+      feld_status: { ...bestehend.feld_status, [feldname]: { status, stand: heute, quelle: null } },
+    });
+  }
+
+  async listenzeileManuellSpeichern(
+    tabelle: KundenProfilListenTabelle,
+    kundeId: string,
+    zeile: Record<string, unknown> & { id?: string },
+    status: KundenProfilElementStatus,
+  ): Promise<{ id: string }> {
+    const liste = this.listeFuer(tabelle);
+    const { id, ...rest } = zeile;
+
+    if (id) {
+      const bestehend = liste.find((eintrag) => eintrag.id === id);
+      if (bestehend) Object.assign(bestehend, rest, { status });
+      return { id };
+    }
+
+    fakeListenElementIdZaehler += 1;
+    const neueId = `fake-${tabelle}-${fakeListenElementIdZaehler}`;
+    (liste as Array<Record<string, unknown>>).push({ id: neueId, kunde_id: kundeId, status, ...rest });
+    return { id: neueId };
+  }
+
+  async listenzeileEntfernen(tabelle: KundenProfilListenTabelle, id: string, kundeId: string): Promise<void> {
+    const liste = this.listeFuer(tabelle) as unknown as Array<{ id: string; kunde_id: string; deleted_at?: string | null }>;
+    const zeile = liste.find((eintrag) => eintrag.id === id && eintrag.kunde_id === kundeId);
+    if (zeile) zeile.deleted_at = new Date().toISOString();
+  }
+
   private listeFuer(tabelle: KundenProfilListenTabelle): Array<{ id: string; status: KundenProfilElementStatus }> {
     switch (tabelle) {
       case 'kunden_boilerplate':
