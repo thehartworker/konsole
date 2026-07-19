@@ -14,7 +14,7 @@ import {
   KUNDEN_GRENZEN_TYP,
   KUNDEN_PROFIL_GRUNDTON,
   MEDIEN_PRIORITAET,
-} from "@konsole/profil-extraktion";
+} from "@konsole/profil-extraktion/client";
 import type { KundenProfilListenTabelle } from "@konsole/persistence";
 
 // Nur die beiden aktuell produktiven Handler (siehe

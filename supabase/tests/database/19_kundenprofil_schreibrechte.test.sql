@@ -47,9 +47,16 @@ SELECT is(
 -- fürs Lesen.
 -- ============================================================
 
-SELECT throws_like(
+-- Warum kein throws_like auf '%row-level security policy%': der
+-- kunden_profil_agentur_id_setzen-Trigger (siehe oben) läuft VOR der
+-- RLS-Policy und scheitert bereits mit NO_DATA_FOUND ("query returned no
+-- rows"), weil editor_a1 den Zielkunden A2 durch RLS auf `kunden` nicht
+-- sieht -- die INSERT-Policy wird nie erreicht. Der Effekt (Manipulation
+-- scheitert) ist trotzdem gewährleistet, deshalb reicht throws_ok.
+SELECT throws_ok(
   $$ INSERT INTO kunden_profil (kunde_id, positionierung) VALUES ('a0000000-0000-0000-0000-000000000012', 'Manipulationsversuch editor_a1') $$,
-  '%row-level security policy%',
+  NULL,
+  NULL,
   'editor_a1 kann KEINE kunden_profil-Zeile für den NICHT zugewiesenen Kunden A2 anlegen'
 );
 

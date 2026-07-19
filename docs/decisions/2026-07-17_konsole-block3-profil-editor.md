@@ -60,6 +60,28 @@ Der bestehende pgTAP-Test `13_kundenprofil_rls.test.sql` behauptete bisher expli
 
 Wie im Issue vorgegeben: schließt die Beraterin den Browser, ist die Vorschlags-Liste weg (übernommene Vorschläge bleiben natürlich als `abgeleitet` im Profil). Das ist hier technisch zwangsläufig, nicht nur eine UX-Entscheidung — mit Entscheidung 3 oben leben Vorschläge ausschließlich im React-State der Editor-Komponente, es gibt keine Zieltabelle, in der sie zwischen Anfragen überleben könnten. Eine `verworfene_vorschlaege`-Tabelle für Anti-Learning aus Ablehnungen (v2, laut Issue explizit nicht Teil dieses Blocks) wäre der naheliegende nächste Schritt, falls sitzungsübergreifende Vorschläge später gewünscht sind.
 
+## Aufgabe H: Post-Merge-Correction nach externem Review
+
+Externes Review (Postgres 16 + `pnpm --filter web build` + `pnpm -r typecheck`) hat drei rote Checks mit lokalen Ursachen gefunden, kein Rewrite nötig. Der neue `build-web`-CI-Job aus Issue #47 Aufgabe C hatte hier seinen ersten scharfen Einsatz und den `node:module`-Bug gefangen, den `typecheck` und `test` allein nicht sehen — genau der Grund, warum der Job gebaut wurde.
+
+### H.1: Server/Client-Trennung für `@konsole/profil-extraktion`
+
+`packages/profil-extraktion/src/index.ts` re-exportierte Server-only-Provider (`ProduktiverDokumentTextProvider`, zieht `pdf-parse`/`mammoth`; `ProduktiverWebsiteTextProvider`) im selben Barrel wie Client-taugliches (Schemas, Types, Enums). Sobald ein Client Component-Modul (`apps/web/src/lib/kundenprofil-felder.ts`, als Laufzeit-Import für die Enums, importiert von der Client Component `profil-editor.tsx`) daraus importierte, zog Webpack den gesamten Barrel inklusive der Provider in den Client-Bundle-Pfad — die Provider referenzieren `node:module`, was im Browser-Bundle bricht.
+
+**Fix:** Neuer Sub-Export `packages/profil-extraktion/src/client.ts` re-exportiert ausschließlich `ProfilExtraktionsVorschlagSchema` und ihre abgeleiteten Types sowie die reinen Typen/Enums aus `types.ts`/`schema.ts` — explizit ohne `dokument-text-provider.ts`, `website-text-provider.ts`, `extrahiere.ts`. `package.json` bekommt einen `"./client"`-Export-Eintrag daneben. `kundenprofil-felder.ts` und `profil-vorschlaege.ts` importieren jetzt aus `@konsole/profil-extraktion/client`; Server-Code (`actions.ts`, `profil-extraktion-ausfuehren.ts`) bleibt unverändert beim Default-Export.
+
+**Verworfene Alternative:** Provider per lazy `await import()` verstecken. Hätte das Symptom gefixt, ohne die eigentliche Server/Client-Trennung zu ziehen — beim nächsten neuen Provider oder Client-Import wäre derselbe Bug wiedergekommen. Der Sub-Export-Fix ist strukturell, nicht symptomatisch.
+
+### H.2: Type-Guard für `VorschlagZielKern | VorschlagZielListe` — geprüft, kein Fix nötig
+
+Der externe Review vermutete einen fehlenden Discriminant-Check beim Zugriff auf `.feldname` in `profil-editor.tsx`. Bei der Umsetzung von Aufgabe H zeigt sich: die Union hat bereits einen Diskriminator (`ziel.art: "kern" | "liste"`), und jede Zugriffsstelle in `profil-editor.tsx` sowie `actions.ts` prüft `ziel.art === "kern"`, bevor sie `.feldname` liest — TypeScripts Discriminated-Union-Narrowing greift hier bereits korrekt. Es wurde keine Code-Änderung vorgenommen; vermutlich bezog sich der externe Befund auf einen früheren Zwischenstand des Branches.
+
+### H.3: pgTAP-Test 19, Assertion 4 zu strikt
+
+`supabase/tests/database/19_kundenprofil_schreibrechte.test.sql`, Assertion 4 (editor_a1 versucht `kunden_profil`-INSERT für den NICHT zugewiesenen Kunden A2) nutzte `throws_like(..., '%row-level security policy%', ...)`. Tatsächlich wirft der bestehende `kunden_profil_agentur_id_setzen_trg` (`20260712110000_kundenprofil.sql`) VOR der RLS-Policy: sein `SELECT agentur_id INTO STRICT ... FROM kunden WHERE id = NEW.kunde_id` sieht Kunde A2 durch die RLS-Policy auf `kunden` selbst nicht (editor_a1 ist dort nicht zugewiesen) und wirft `NO_DATA_FOUND` ("query returned no rows") — die INSERT-Policy auf `kunden_profil` wird nie erreicht. Der Effekt (Schreibversuch scheitert) stellt sich trotzdem ein, nur die Fehlermeldung weicht ab.
+
+**Fix:** Assertion 4 von `throws_like` auf `throws_ok` umgestellt (prüft nur "es wirft", nicht die konkrete Meldung), mit Kommentar im Test-File. Assertion 5 (reader_a, Kunde A1 IST zugewiesen, aber Rolle ohne Schreib-Zweig) bleibt unverändert bei `throws_like` — dort sieht reader_a den Zielkunden per RLS auf `kunden`, der Trigger läuft durch, und die eigentliche INSERT-Policy wirft tatsächlich mit der RLS-Meldung.
+
 ## Scope-Grenzen (aus dem Issue übernommen)
 
 Kollaboratives Live-Editing, Ambient-Vorschläge, Verworfene-Vorschläge-Persistenz/Anti-Learning, Historie/Versionierung von Profil-Zellen, Bulk-CSV-Import, White-Label-Umschaltung, weitere Sub-Tabs unter `/kunden/[id]` — alle bewusst nicht Teil dieses Blocks, siehe Issue.

@@ -13,7 +13,7 @@
 // Schema-Änderung im Gleichschritt bleiben.
 
 import type { KundenProfilListenTabelle } from "@konsole/persistence";
-import type { ProfilExtraktionsQuelle, ProfilExtraktionsVorschlag } from "@konsole/profil-extraktion";
+import type { ProfilExtraktionsQuelle, ProfilExtraktionsVorschlag } from "@konsole/profil-extraktion/client";
 import { KERN_FELDER, LISTEN_TABELLEN, type KernSektion, type ListenSektion } from "./kundenprofil-felder";
 
 export interface VorschlagZielKern {
